@@ -14,7 +14,7 @@ torch.manual_seed(1)
 class BiLSTM(nn.Module):
 
     def __init__(self, embedding_dim, hidden_dim, vocab_size, vocab_embedding):
-        super(LSTMTagger, self).__init__()
+        super(BiLSTM, self).__init__()
         self.hidden_dim = hidden_dim
 
         self.word_embeddings = nn.Embedding(vocab_size, embedding_dim)
@@ -24,7 +24,6 @@ class BiLSTM(nn.Module):
         # with dimensionality hidden_dim.
         self.lstm = nn.LSTM(embedding_dim, hidden_dim, bidirectional=True)
 
-        # The linear layer that maps from hidden state space to tag space
         self.maxpool = nn.MaxPool1d(hidden_dim*2)
         self.hidden = self.init_hidden()
 
@@ -40,19 +39,28 @@ class BiLSTM(nn.Module):
         embeds = self.word_embeddings(sentence)
         lstm_out, self.hidden = self.lstm(
             embeds.view(len(sentence), 1, -1), self.hidden)
-        maxpool_hidden = self.maxpool(lstm_out.view(len(sentence), -1))
-        return maxpool_hidden
+        #maxpool_hidden = self.maxpool(lstm_out.view(1,len(sentence), -1))
+        #print(len(self.hidden))
+        return self.hidden[0].view(-1, self.hidden_dim*2)
 
 class SimilarityModel(nn.Module):
-    def __init__(self, embedding_dim, hiden_dim, vocab_size, vocab_embedding):
+    def __init__(self, embedding_dim, hidden_dim, vocab_size, vocab_embedding):
         super(SimilarityModel, self).__init__()
         self.sentence_biLstm = BiLSTM(embedding_dim, hidden_dim, vocab_size,
                                       vocab_embedding)
         self.relation_biLstm = BiLSTM(embedding_dim, hidden_dim, vocab_size,
                                       vocab_embedding)
 
+    def init_hidden(self):
+        self.sentence_biLstm.init_hidden()
+        self.relation_biLstm.init_hidden()
 
     def forward(self, question, relation):
         sentence_embedding = self.sentence_biLstm(question)
         relation_embedding = self.relation_biLstm(relation)
-        return F.cosine_similarity(sentence_embedding, relation_embedding)
+        #print('sentence_embedding size', sentence_embedding.size())
+        #print('relation_embedding size', relation_embedding.size())
+        #print('sentence_embedding', sentence_embedding)
+        #print('relation_embedding', relation_embedding)
+        cos = nn.CosineSimilarity(dim=1)
+        return cos(sentence_embedding, relation_embedding)

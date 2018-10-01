@@ -164,7 +164,8 @@ def gen_data():
     #print(training_data[0:10])
     testing_data = transform_questions(testing_data, vocabulary)
     valid_data = transform_questions(valid_data, vocabulary)
-    return training_data, testing_data, valid_data, cleaned_relations
+    return training_data, testing_data, valid_data, relation_numbers,\
+        vocabulary,embedding
 
 if __name__ == '__main__':
     gen_data(relation_file, training_file, test_file, valid_file, glove_file)
