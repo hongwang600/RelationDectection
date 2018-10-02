@@ -43,10 +43,8 @@ def read_samples(sample_file):
             #print(items[1].split())
             if items[1] != 'noNegativeAnswer':
                 candidate_ixs = [int(ix) for ix in items[1].split()]
-            else:
-                candidate_ixs = []
-            question = remove_return_sym(items[2]).split()
-            sample_data.append([relation_ix, candidate_ixs, question])
+                question = remove_return_sym(items[2]).split()
+                sample_data.append([relation_ix, candidate_ixs, question])
     return sample_data
 
 # concat words by using '_'
