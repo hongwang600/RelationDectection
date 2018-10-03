@@ -14,7 +14,7 @@ torch.manual_seed(1)
 class BiLSTM(nn.Module):
 
     def __init__(self, embedding_dim, hidden_dim, vocab_size, vocab_embedding,
-                 batch_size):
+                 batch_size, device):
         super(BiLSTM, self).__init__()
         self.hidden_dim = hidden_dim
         self.batch_size = batch_size
@@ -24,19 +24,32 @@ class BiLSTM(nn.Module):
         # with dimensionality hidden_dim.
         self.lstm = nn.LSTM(embedding_dim, hidden_dim, bidirectional=True)
 
-        self.maxpool = nn.MaxPool1d(hidden_dim*2)
-        self.init_hidden()
+        #self.maxpool = nn.MaxPool1d(hidden_dim*2)
+        self.hidden = self.build_hidden()
 
-    def init_hidden(self, batch_size = 1):
+    def build_hidden(self, batch_size = 1):
         # Before we've done anything, we dont have any hidden state.
         # Refer to the Pytorch documentation to see exactly
         # why they have this dimensionality.
         # The axes semantics are (num_layers, minibatch_size, hidden_dim)
-        print(batch_size)
-        self.hidden = (torch.zeros(2, batch_size, self.hidden_dim),
-                torch.zeros(2, batch_size, self.hidden_dim))
+        #print(batch_size)
+        return [torch.zeros(2, batch_size, self.hidden_dim),
+                torch.zeros(2, batch_size, self.hidden_dim)]
+
+    def init_hidden(self, device='cpu', batch_size = 1):
+        # Before we've done anything, we dont have any hidden state.
+        # Refer to the Pytorch documentation to see exactly
+        # why they have this dimensionality.
+        # The axes semantics are (num_layers, minibatch_size, hidden_dim)
+        #print(batch_size)
+        self.hidden = (torch.zeros(2, batch_size, self.hidden_dim).to(device),
+                torch.zeros(2, batch_size, self.hidden_dim).to(device))
+        #self.hidden[0] = self.hidden[0].to(device)
+        #self.hidden[1] = self.hidden[1].to(device)
 
     def forward(self, packed_embeds):
+        #print(packed_embeds)
+        #print(self.hidden)
         lstm_out, self.hidden = self.lstm(packed_embeds, self.hidden)
         #maxpool_hidden = self.maxpool(lstm_out.view(1,len(sentence), -1))
         #print(len(self.hidden))
@@ -44,19 +57,20 @@ class BiLSTM(nn.Module):
 
 class SimilarityModel(nn.Module):
     def __init__(self, embedding_dim, hidden_dim, vocab_size, vocab_embedding,
-                 batch_size):
+                 batch_size, device):
         super(SimilarityModel, self).__init__()
         self.batch_size = batch_size
         self.word_embeddings = nn.Embedding(vocab_size, embedding_dim)
         self.word_embeddings.weight.data.copy_(torch.from_numpy(vocab_embedding))
+        self.word_embeddings = self.word_embeddings.to(device)
         self.sentence_biLstm = BiLSTM(embedding_dim, hidden_dim, vocab_size,
-                                      vocab_embedding, batch_size)
+                                      vocab_embedding, batch_size, device)
         self.relation_biLstm = BiLSTM(embedding_dim, hidden_dim, vocab_size,
-                                      vocab_embedding, batch_size)
+                                      vocab_embedding, batch_size, device)
 
-    def init_hidden(self, batch_size=1):
-        self.sentence_biLstm.init_hidden(batch_size)
-        self.relation_biLstm.init_hidden(batch_size)
+    def init_hidden(self, device, batch_size=1):
+        self.sentence_biLstm.init_hidden(device, batch_size)
+        self.relation_biLstm.init_hidden(device, batch_size)
 
     def ranking_sequence(self, sequence):
         word_lengths = torch.tensor([len(sentence) for sentence in sequence])
@@ -66,7 +80,10 @@ class SimilarityModel(nn.Module):
         sequence = [sequence[i] for i in indexs]
         return sequence, inverse_indexs
 
-    def forward(self, question_list, relation_list, device):
+    def forward(self, question_list, relation_list, device,
+                reverse_question_indexs, reverse_relation_indexs,
+                question_lengths, relation_lengths):
+        '''
         question_embeds = [self.word_embeddings(sentence)
                            for sentence in question_list]
         ranked_question_embeds, reverse_question_indexs = \
@@ -80,6 +97,21 @@ class SimilarityModel(nn.Module):
         relation_packed = torch.nn.utils.rnn.pack_sequence(ranked_relation_embeds)
         question_packed.to(device)
         relation_packed.to(device)
+        '''
+        question_embeds = self.word_embeddings(question_list)
+        relation_embeds = self.word_embeddings(relation_list)
+        #print(question_lengths)
+        question_packed = \
+            torch.nn.utils.rnn.pack_padded_sequence(question_embeds,
+                                                    question_lengths)
+        relation_packed = \
+            torch.nn.utils.rnn.pack_padded_sequence(relation_embeds,
+                                                    relation_lengths)
+        #question_packed.to(device)
+        #relation_packed.to(device)
+        #self.sentence_biLstm.to(device)
+        #print(question_packed)
+        #print(question_lengths)
         question_embedding = self.sentence_biLstm(question_packed)
         relation_embedding = self.relation_biLstm(relation_packed)
         question_embedding = question_embedding[reverse_question_indexs]
