@@ -16,7 +16,7 @@ import torch.optim as optim
 from data import gen_data
 from model import SimilarityModel
 embedding_dim = 300
-hidden_dim = 100
+hidden_dim = 200
 batch_size = 50
 
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
@@ -65,16 +65,18 @@ def evaluate_model(model, testing_data, batch_size, all_relations, device):
                            question_lengths, relation_lengths)
         start_index = 0
         pred_indexs = []
-        for i in range(len(relation_set_lengths)):
-            length = relation_set_lengths[i]
-            cand_indexs = samples[i][1]
-            pred_indexs.append(cand_indexs[
+        #print('len of relation_set:', len(relation_set_lengths))
+        for j in range(len(relation_set_lengths)):
+            length = relation_set_lengths[j]
+            cand_indexs = samples[j][1]
+            pred_index = (cand_indexs[
                 all_scores[start_index:start_index+length].argmax()])
-            start_index += length
-        #print(pred_indexs, gold_relation_indexs)
-        for i in range(len(pred_indexs)):
-            if pred_indexs[i] == gold_relation_indexs[i]:
+            if pred_index == gold_relation_indexs[j]:
                 num_correct += 1
+            #print('scores:', all_scores[start_index:start_index+length])
+            #print('cand indexs:', cand_indexs)
+            #print('pred, true:',pred_index, gold_relation_indexs[j])
+            start_index += length
     #print(cand_scores[-1])
     print('num correct:', num_correct)
     print('correct rate:', float(num_correct)/len(testing_data))
@@ -113,13 +115,13 @@ if __name__ == '__main__':
     #print(training_data[0:10])
     #print(testing_data[0:10])
     #print(valid_data[0:10])
-    #print(relations[0:10])
+    #print(all_relations[0:10])
     model = SimilarityModel(embedding_dim, hidden_dim, len(vocabulary),
                             np.array(embedding), 1, device)
-    loss_function = nn.MarginRankingLoss(0)
-    optimizer = optim.SGD(model.parameters(), lr=0.01)
-    model.to(device)
-    for epoch in range(100):
+    loss_function = nn.MarginRankingLoss(0.5)
+    model = model.to(device)
+    optimizer = optim.Adam(model.parameters(), lr=0.001)
+    for epoch in range(1000):
         print('epoch', epoch)
         #training_data = training_data[0:100]
         for i in range((len(training_data)-1)//batch_size+1):
@@ -169,6 +171,7 @@ if __name__ == '__main__':
                                question_lengths, relation_lengths)
             #print(all_scores)
             #print(relation_set_lengths)
+            all_scores = all_scores.to('cpu')
             pos_scores = []
             neg_scores = []
             start_index = 0
@@ -198,8 +201,10 @@ if __name__ == '__main__':
             loss = loss_function(pos_scores, neg_scores,
                                  torch.ones(sum(relation_set_lengths)-
                                             len(relation_set_lengths)))
-            loss.backward(retain_graph=True)
+            #print(loss)
+            #loss.backward(retain_graph=True)
+            loss.backward()
             #print('got loss')
             #print('loss', loss)
             optimizer.step()
-        evaluate_model(model, testing_data, batch_size, all_relations, device)
+        evaluate_model(model, valid_data, batch_size, all_relations, device)

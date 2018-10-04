@@ -52,8 +52,9 @@ class BiLSTM(nn.Module):
         #print(self.hidden)
         lstm_out, self.hidden = self.lstm(packed_embeds, self.hidden)
         #maxpool_hidden = self.maxpool(lstm_out.view(1,len(sentence), -1))
-        #print(len(self.hidden))
-        return self.hidden[0].view(-1, self.hidden_dim*2)
+        permuted_hidden = self.hidden[0].permute([1,0,2]).contiguous()
+        #print(permuted_hidden.size())
+        return permuted_hidden.view(-1, self.hidden_dim*2)
 
 class SimilarityModel(nn.Module):
     def __init__(self, embedding_dim, hidden_dim, vocab_size, vocab_embedding,
