@@ -1,13 +1,14 @@
 import numpy as np
 import wordninja
+from config import CONFIG as conf
 
-relation_file = "./data/relation.2M.list"
-training_file = "./data/train.replace_ne.withpool"
-test_file = "./data/test.replace_ne.withpool"
-valid_file = "./data/valid.replace_ne.withpool"
+relation_file = conf['relation_file']
+training_file = conf['training_file']
+test_file = conf['test_file']
+valid_file = conf['valid_file']
 #glove_file = "./data/glove.6B.300d.txt"
-glove_file = "./data/small_glove.6B.300d.txt"
-embedding_size = 300
+glove_file = conf['glove_file']
+embedding_size = conf['embedding_dim']
 
 # remove return symbol
 def remove_return_sym(str):

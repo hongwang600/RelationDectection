@@ -8,10 +8,11 @@ from data import gen_data
 from model import SimilarityModel
 from utils import process_testing_samples, evaluate_model, process_samples,\
     ranking_sequence
+from config import CONFIG as conf
 
-model_path = 'model.pt'
-batch_size = 50
-device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+model_path = conf['model_path'] 
+batch_size = conf['batch_size']
+device = conf['device']
 
 if __name__ == '__main__':
     model = torch.load(model_path)

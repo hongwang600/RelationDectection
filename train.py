@@ -1,12 +1,3 @@
-'''
-relation_file = "./data/relation.2M.list"
-training_file = "./data/train.replace_ne.withpool"
-test_file = "./data/test.replace_ne.withpool"
-valid_file = "./data/valid.replace_ne.withpool"
-#glove_file = "./data/glove.6B.300d.txt"
-glove_file = "./data/small_glove.6B.300d.txt"
-embedding_size = 300
-'''
 import numpy as np
 import torch
 import torch.nn as nn
@@ -17,12 +8,14 @@ from data import gen_data
 from model import SimilarityModel
 from utils import process_testing_samples, evaluate_model, process_samples,\
     ranking_sequence
-embedding_dim = 300
-hidden_dim = 200
-batch_size = 50
-model_path = 'model.pt'
-device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
-lr = 0.001
+from config import CONFIG as conf
+
+embedding_dim = conf['embedding_dim']
+hidden_dim = conf['hidden_dim']
+batch_size = conf['batch_size']
+model_path = conf['model_path']
+device = conf['device']
+lr = conf['learning_rate']
 
 def train(training_data, valid_data, vocabulary, embedding_dim, hidden_dim,
           device, batch_size, model_path, lr, model=None, epock=100):

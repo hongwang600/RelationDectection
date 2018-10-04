@@ -4,10 +4,11 @@ from sklearn.decomposition import PCA
 from matplotlib import pyplot
 from gensim.scripts.glove2word2vec import glove2word2vec
 from gensim.models import KeyedVectors
+from config import CONFIG as conf
 
-sq_relation_name_file = './data/relation.2M.list'
-sq_train_file = './data/train.replace_ne.withpool'
-sq_test_file = './data/test.replace_ne.withpool'
+sq_relation_name_file = conf['relation_file']
+sq_train_file = conf['training_file']
+sq_test_file = conf['test_file']
 
 # read the indexs of relations in a given file
 def read_relations_index(file_name):

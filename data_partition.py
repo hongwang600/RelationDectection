@@ -1,11 +1,12 @@
 import numpy as np
 from sklearn.cluster import KMeans
 from relation_embedding import gen_relation_embedding
+from config import CONFIG as conf
 
 np.set_printoptions(threshold=np.inf)
 #num_clusters = 50
-train_data_path = './data/train.replace_ne.withpool'
-relation_path = './data/relation.2M.list'
+train_data_path = conf['training_file']
+relation_path = conf['relation_file']
 
 
 def cluster_data(num_clusters=20):

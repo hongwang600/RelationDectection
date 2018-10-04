@@ -4,6 +4,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import torch.optim as optim
+from config import CONFIG as conf
 
 # process the data by adding questions
 def process_testing_samples(sample_list, all_relations, device):
