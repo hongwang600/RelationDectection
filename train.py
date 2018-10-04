@@ -21,30 +21,25 @@ embedding_dim = 300
 hidden_dim = 200
 batch_size = 50
 model_path = 'model.pt'
-
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+lr = 0.001
 
-if __name__ == '__main__':
-    training_data, testing_data, valid_data, all_relations, vocabulary,  embedding=\
-        gen_data()
-    #print(training_data[0:10])
-    #print(testing_data[0:10])
-    #print(valid_data[0:10])
-    #print(all_relations[0:10])
-    model = SimilarityModel(embedding_dim, hidden_dim, len(vocabulary),
-                            np.array(embedding), 1, device)
+def train(training_data, valid_data, vocabulary, embedding_dim, hidden_dim,
+          device, batch_size, model_path, lr, model=None, epock=100):
+    if model is None:
+        model = SimilarityModel(embedding_dim, hidden_dim, len(vocabulary),
+                                np.array(embedding), 1, device)
     loss_function = nn.MarginRankingLoss(0.5)
     model = model.to(device)
-    optimizer = optim.Adam(model.parameters(), lr=0.001)
+    optimizer = optim.Adam(model.parameters(), lr=lr)
     best_acc = 0
     for epoch in range(1000):
         print('epoch', epoch)
         #training_data = training_data[0:100]
         for i in range((len(training_data)-1)//batch_size+1):
             samples = training_data[i*batch_size:(i+1)*batch_size]
-            questions, relations, relation_set_lengths = process_samples(samples,
-                                                                     all_relations,
-                                                                     device)
+            questions, relations, relation_set_lengths = process_samples(
+                samples, all_relations, device)
             #print('got data')
             ranked_questions, reverse_question_indexs = \
                 ranking_sequence(questions)
@@ -60,33 +55,11 @@ if __name__ == '__main__':
             pad_relations = pad_relations.to(device)
             #print(pad_questions)
 
-
             model.zero_grad()
-            '''
-            question = torch.tensor(sample[2], dtype=torch.long)
-            #print(relations[sample[0]])
-            pos_relation = torch.tensor(relations[sample[0]], dtype=torch.long)
-            neg_relations = [torch.tensor(relations[index], dtype=torch.long)
-                             for index in sample[1]]
-            all_relations = [pos_relation]+ neg_relations
-            expanded_question = question.expand(len(all_relations), -1)
-            '''
-            #print(expanded_question)
-
-            # put data to device
-            #expanded_question = expanded_question.to(device)
-            #pos_relation = pos_relation.to(device)
-            #neg_relations = [relation.to(device) for relation in neg_relations]
-            #all_relations = all_relations.to(device)
-
             model.init_hidden(device, sum(relation_set_lengths))
-            #print(sum(relation_set_lengths))
-            #print(model)
             all_scores = model(pad_questions, pad_relations, device,
                                reverse_question_indexs, reverse_relation_indexs,
                                question_lengths, relation_lengths)
-            #print(all_scores)
-            #print(relation_set_lengths)
             all_scores = all_scores.to('cpu')
             pos_scores = []
             neg_scores = []
@@ -97,32 +70,22 @@ if __name__ == '__main__':
                 start_index += length
             pos_scores = torch.cat(pos_scores)
             neg_scores = torch.cat(neg_scores)
-            #print('got scores')
 
-            '''
-            pos_score = model(question, pos_relation)
-            pos_score_set = pos_score
-            for i in range(len(neg_relations)-1):
-                pos_score_set = torch.cat((pos_score_set, pos_score), 0)
-            neg_score = []
-            for relation in neg_relations:
-                model.init_hidden()
-                neg_score.append(model(question, relation))
-            #print(pos_score)
-            #print(neg_score)
-            neg_score = torch.cat(neg_score, 0)
-            '''
-            #print(pos_scores)
-            #print(neg_scores)
             loss = loss_function(pos_scores, neg_scores,
                                  torch.ones(sum(relation_set_lengths)-
                                             len(relation_set_lengths)))
-            #print(loss)
-            #loss.backward(retain_graph=True)
             loss.backward()
-            #print('got loss')
-            #print('loss', loss)
             optimizer.step()
         acc=evaluate_model(model, valid_data, batch_size, all_relations, device)
         if acc > best_acc:
             torch.save(model, model_path)
+
+if __name__ == '__main__':
+    training_data, testing_data, valid_data, all_relations, vocabulary, \
+        embedding=gen_data()
+    train(training_data, valid_data, vocabulary, embedding_dim, hidden_dim,
+          device, batch_size, model_path, lr, model=None, epock=100)
+    #print(training_data[0:10])
+    #print(testing_data[0:10])
+    #print(valid_data[0:10])
+    #print(all_relations[0:10])
