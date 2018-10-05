@@ -55,6 +55,7 @@ if __name__ == '__main__':
     #print(cluster_labels)
     seen_relations = []
     current_model = None
+    np.set_printoptions(precision=3)
     for i in range(num_clusters):
         seen_relations += [data[0] for data in splited_training_data[i] if
                           data[0] not in seen_relations]
