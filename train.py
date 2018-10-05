@@ -6,8 +6,8 @@ import torch.optim as optim
 
 from data import gen_data
 from model import SimilarityModel
-from utils import process_testing_samples, evaluate_model, process_samples,\
-    ranking_sequence
+from utils import process_testing_samples, process_samples, ranking_sequence
+from evaluate import evaluate_model
 from config import CONFIG as conf
 
 embedding_dim = conf['embedding_dim']
@@ -18,7 +18,8 @@ device = conf['device']
 lr = conf['learning_rate']
 
 def train(training_data, valid_data, vocabulary, embedding_dim, hidden_dim,
-          device, batch_size, model_path, lr, model=None, epock=100):
+          device, batch_size, lr, model_path, embedding, all_relations,
+          model=None, epoch=100):
     if model is None:
         model = SimilarityModel(embedding_dim, hidden_dim, len(vocabulary),
                                 np.array(embedding), 1, device)
@@ -26,8 +27,8 @@ def train(training_data, valid_data, vocabulary, embedding_dim, hidden_dim,
     model = model.to(device)
     optimizer = optim.Adam(model.parameters(), lr=lr)
     best_acc = 0
-    for epoch in range(1000):
-        print('epoch', epoch)
+    for epoch_i in range(epoch):
+        print('epoch', epoch_i)
         #training_data = training_data[0:100]
         for i in range((len(training_data)-1)//batch_size+1):
             samples = training_data[i*batch_size:(i+1)*batch_size]
@@ -72,12 +73,15 @@ def train(training_data, valid_data, vocabulary, embedding_dim, hidden_dim,
         acc=evaluate_model(model, valid_data, batch_size, all_relations, device)
         if acc > best_acc:
             torch.save(model, model_path)
+    best_model = torch.load(model_path)
+    return best_model
 
 if __name__ == '__main__':
     training_data, testing_data, valid_data, all_relations, vocabulary, \
         embedding=gen_data()
     train(training_data, valid_data, vocabulary, embedding_dim, hidden_dim,
-          device, batch_size, model_path, lr, model=None, epock=100)
+          device, batch_size, lr, model_path, embedding, all_relations,
+          model=None, epoch=100)
     #print(training_data[0:10])
     #print(testing_data[0:10])
     #print(valid_data[0:10])

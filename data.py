@@ -17,6 +17,7 @@ def remove_return_sym(str):
 # get the relation names from the file
 def read_relations(relation_file):
     relation_list = []
+    relation_list.append('/fill/fill/fill')
     with open(relation_file) as file_in:
         for line in file_in:
             relation_list.append(remove_return_sym(line))

@@ -1,14 +1,16 @@
 import numpy as np
 import wordninja
 from sklearn.decomposition import PCA
-from matplotlib import pyplot
+#from matplotlib import pyplot
 from gensim.scripts.glove2word2vec import glove2word2vec
 from gensim.models import KeyedVectors
 from config import CONFIG as conf
 
 sq_relation_name_file = conf['relation_file']
 sq_train_file = conf['training_file']
+sq_valid_file = conf['valid_file']
 sq_test_file = conf['test_file']
+glove_input_file = conf['glove_file']
 
 # read the indexs of relations in a given file
 def read_relations_index(file_name):
@@ -32,15 +34,13 @@ def read_relation_names(file_name, relation_index):
     return relation_names
 
 # read the embeddings for a given vocabulary
-def read_glove_embeddings(vocabulary):
-    glove_input_file = './data/glove.6B.300d.txt'
+def read_glove_embeddings(glove_input_file):
     glove_dict = {}
     with open(glove_input_file) as in_file:
         for line in in_file:
             values = line.split()
             word = values[0]
-            if word in vocabulary:
-                glove_dict[word] = np.asarray(values[1:], dtype='float32')
+            glove_dict[word] = np.asarray(values[1:], dtype='float32')
     return glove_dict
 
 def split_relation_into_words(relation):
@@ -76,16 +76,19 @@ def get_embedding(relation_name, glove_embeddings):
 def gen_relation_embedding():
     train_relation_index = read_relations_index(sq_train_file)
     #print(train_relation_index)
+    valid_relation_index = read_relations_index(sq_valid_file)
     test_relation_index = read_relations_index(sq_test_file)
-    relation_index = train_relation_index.copy()
-    for index in test_relation_index:
+    # Here list(a) will copy items in a. list.copy() not availabel in python2
+    relation_index = list(train_relation_index)
+    for index in test_relation_index+valid_relation_index:
         if index not in relation_index:
             relation_index.append(index)
     relation_index = np.array(relation_index)
     #print(relation_index[-1])
     relation_names = read_relation_names(sq_relation_name_file, relation_index)
-    vocabulary = gen_vocabulary(relation_names)
-    glove_embeddings = read_glove_embeddings(vocabulary)
+    #vocabulary = gen_vocabulary(relation_names)
+    glove_embeddings = read_glove_embeddings(glove_input_file)
+    #print(glove_embeddings)
     #print(glove_embeddings['dancer'])
     #print(vocabulary)
     #print(relation_names[-1])
@@ -98,7 +101,7 @@ def gen_relation_embedding():
         for item in relation_names:
             file_out.write('%s\n' %item)
     '''
-    relation_embeddings = np.array(relation_embeddings)
+    relation_embeddings = np.asarray(relation_embeddings)
     '''
     relation_dict = {}
     for i in range(len(relation_index)):
