@@ -3,6 +3,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import torch.optim as optim
+import sys
 
 from data import gen_data
 from model import SimilarityModel
@@ -38,6 +39,11 @@ def remove_unseen_relation(dataset, seen_relations):
             cleaned_data.append(data)
     return cleaned_data
 
+def print_list(result):
+    for num in result:
+        sys.stdout.write('%.3f, ' %num)
+    print('')
+
 if __name__ == '__main__':
     training_data, testing_data, valid_data, all_relations, vocabulary, \
         embedding=gen_data()
@@ -55,7 +61,7 @@ if __name__ == '__main__':
     #print(cluster_labels)
     seen_relations = []
     current_model = None
-    np.set_printoptions(precision=3)
+    #np.set_printoptions(precision=3)
     for i in range(num_clusters):
         seen_relations += [data[0] for data in splited_training_data[i] if
                           data[0] not in seen_relations]
@@ -74,4 +80,4 @@ if __name__ == '__main__':
         results = [evaluate_model(current_model, test_data, batch_size,
                                   all_relations, device)
                    for test_data in current_test_data]
-        print(results)
+        print_list(results)
