@@ -50,8 +50,8 @@ def evaluate_model(model, testing_data, batch_size, all_relations, device):
             #print('pred, true:',pred_index, gold_relation_indexs[j])
             start_index += length
     #print(cand_scores[-1])
-    print('num correct:', num_correct)
-    print('correct rate:', float(num_correct)/len(testing_data))
+    #print('num correct:', num_correct)
+    #print('correct rate:', float(num_correct)/len(testing_data))
     return float(num_correct)/len(testing_data)
 
 if __name__ == '__main__':
