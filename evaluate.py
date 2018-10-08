@@ -58,5 +58,6 @@ if __name__ == '__main__':
     model = torch.load(model_path)
     training_data, testing_data, valid_data,\
         all_relations, vocabulary,  embedding = gen_data()
+    model.init_embedding(np.array(embedding))
     acc=evaluate_model(model, testing_data, batch_size, all_relations, device)
     print('accuracy:', acc)

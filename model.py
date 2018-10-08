@@ -64,6 +64,7 @@ class SimilarityModel(nn.Module):
         self.word_embeddings = nn.Embedding(vocab_size, embedding_dim)
         self.word_embeddings.weight.data.copy_(torch.from_numpy(vocab_embedding))
         self.word_embeddings = self.word_embeddings.to(device)
+        self.word_embeddings.weight.requires_grad = False
         self.sentence_biLstm = BiLSTM(embedding_dim, hidden_dim, vocab_size,
                                       vocab_embedding, batch_size, device)
         self.relation_biLstm = BiLSTM(embedding_dim, hidden_dim, vocab_size,
@@ -72,6 +73,11 @@ class SimilarityModel(nn.Module):
     def init_hidden(self, device, batch_size=1):
         self.sentence_biLstm.init_hidden(device, batch_size)
         self.relation_biLstm.init_hidden(device, batch_size)
+
+    def init_embedding(self, vocab_embedding):
+        #print(self.word_embeddings(torch.tensor([27]).cuda()))
+        self.word_embeddings.weight.data.copy_(torch.from_numpy(vocab_embedding))
+        #print(self.word_embeddings(torch.tensor([27]).cuda()))
 
     def ranking_sequence(self, sequence):
         word_lengths = torch.tensor([len(sentence) for sentence in sequence])
