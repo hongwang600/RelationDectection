@@ -28,7 +28,7 @@ def train(training_data, valid_data, vocabulary, embedding_dim, hidden_dim,
     optimizer = optim.Adam(model.parameters(), lr=lr)
     best_acc = 0
     for epoch_i in range(epoch):
-        print('epoch', epoch_i)
+        #print('epoch', epoch_i)
         #training_data = training_data[0:100]
         for i in range((len(training_data)-1)//batch_size+1):
             samples = training_data[i*batch_size:(i+1)*batch_size]

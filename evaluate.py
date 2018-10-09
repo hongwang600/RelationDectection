@@ -15,7 +15,7 @@ device = conf['device']
 
 # evaluate the model on the testing data
 def evaluate_model(model, testing_data, batch_size, all_relations, device):
-    print('start evaluate')
+    #print('start evaluate')
     num_correct = 0
     #testing_data = testing_data[0:100]
     for i in range((len(testing_data)-1)//batch_size+1):

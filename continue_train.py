@@ -4,6 +4,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 import torch.optim as optim
 import sys
+import random
 
 from data import gen_data
 from model import SimilarityModel
@@ -22,11 +23,12 @@ lr = conf['learning_rate']
 model_path = conf['model_path']
 epoch = conf['epoch']
 
-def split_data(data_set, cluster_labels, num_clusters):
+def split_data(data_set, cluster_labels, num_clusters, shuffle_index):
     splited_data = [[] for i in range(num_clusters)]
     for data in data_set:
         cluster_number = cluster_labels[data[0]]
-        splited_data[cluster_number].append(data)
+        index_number = shuffle_index[cluster_number]
+        splited_data[index_number].append(data)
     return splited_data
 
 # remove unseen relations from the dataset
@@ -48,10 +50,14 @@ if __name__ == '__main__':
     training_data, testing_data, valid_data, all_relations, vocabulary, \
         embedding=gen_data()
     cluster_labels = cluster_data(num_clusters)
+    shuffle_index = [i for i in range(num_clusters)]
+    random.shuffle(shuffle_index)
     splited_training_data = split_data(training_data, cluster_labels,
-                                       num_clusters)
-    splited_valid_data = split_data(valid_data, cluster_labels, num_clusters)
-    splited_test_data = split_data(testing_data, cluster_labels, num_clusters)
+                                       num_clusters, shuffle_index)
+    splited_valid_data = split_data(valid_data, cluster_labels,
+                                    num_clusters, shuffle_index)
+    splited_test_data = split_data(testing_data, cluster_labels,
+                                   num_clusters, shuffle_index)
     #print(splited_training_data)
     '''
     for data in splited_training_data[0]:
