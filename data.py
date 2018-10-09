@@ -74,14 +74,27 @@ def split_relation_into_words(relation, glove_vocabulary):
         #print(new_word_list)
         word_list += new_word_list
         relation_list.append(concat_words(new_word_list))
-    return word_list+relation_list
+    return [word_list, relation_list]
+
+# only keep the relations that appear in the data
+def filter_relation(relation_list, all_samples):
+    shown_relations_indexs = []
+    for sample in all_samples:
+        if sample[0] not in shown_relations_indexs:
+            shown_relations_indexs.append(sample[0])
+        for relation_index in sample[1]:
+            if relation_index not in shown_relations_indexs:
+                shown_relations_indexs.append(relation_index)
+    filter_relations = [relation_list[i] for i in shown_relations_indexs]
+    return filter_relations
 
 # some words are put together, such computerscience. Need to split these words
 # in the samples, and will split the relation
 def clean_relations(relation_list, glove_vocabulary):
     cleaned_relations = []
     for relation in relation_list:
-        cleaned_relations.append(split_relation_into_words(relation, glove_vocabulary))
+        cleaned_relations.append(
+            split_relation_into_words(relation, glove_vocabulary))
     return cleaned_relations
 
 # build the vocabulary and embedding from the relations and questions based on
@@ -92,6 +105,7 @@ def build_vocabulary_embedding(relation_list, all_samples, glove_embedding,
     embedding = []
     index = 0
     for relation in relation_list:
+        #print(relation)
         for word in relation:
             if word not in vocabulary:
                 vocabulary[word] = index
@@ -123,12 +137,30 @@ def words2indexs(word_list, vocabulary):
         index_list.append(vocabulary[word])
     return index_list
 
+# transform the relation in the list into the index in the vocabulary
+def relation2indexs(word_relation, word_vocabulary, relation_vocabulary):
+    index_list = [[],[]]
+    for word in word_relation[0]:
+        if word in word_vocabulary:
+            index_list[0].append(word_vocabulary[word])
+        else:
+            index_list[0].append(-1)
+    for relation in word_relation[1]:
+        if relation in relation_vocabulary:
+            index_list[1].append(relation_vocabulary[relation])
+        else:
+            index_list[1].append(-1)
+    return index_list
+
 # transform the words in the relations into index in the vocabulary
-def transform_relations(relation_list, vocabulary):
-    relation_ixs = []
-    for relation in relation_list:
-        relation_ixs.append(words2indexs(relation, vocabulary))
-    return relation_ixs
+def transform_word_relations(word_relation_list,
+                             word_vocabulary, relation_vocabulary):
+    word_relation_ixs = []
+    for word_relation in word_relation_list:
+        word_relation_ixs.append(relation2indexs(word_relation,
+                                                 word_vocabulary,
+                                                 relation_vocabulary))
+    return word_relation_ixs
 
 # transform the words in the questions into index of the vocabulary
 def transform_questions(sample_list, vocabulary):
@@ -139,33 +171,45 @@ def transform_questions(sample_list, vocabulary):
 # generate the training, valid, test data
 #def gen_data(relation_file, training_file, test_file, valid_file, glove_file):
 def gen_data():
-    relation_list = read_relations(relation_file)
+    all_word_relation_list = read_relations(relation_file)
     #print(relation_list[1:10])
     glove_vocabulary, glove_embedding = read_glove(glove_file)
+    all_word_relation_list = clean_relations(
+        all_word_relation_list, glove_vocabulary)
     #print(glove_vocabulary[0:10])
     #print(glove_embedding['of'])
     training_data = read_samples(training_file)
     testing_data = read_samples(test_file)
     valid_data = read_samples(valid_file)
     all_samples = training_data + testing_data + valid_data
+    filter_word_relation_list = filter_relation(
+        all_word_relation_list, all_samples)
     #print(training_data[0])
-    cleaned_relations = clean_relations(relation_list, glove_vocabulary)
     #print(cleaned_relations)
-    vocabulary, embedding = build_vocabulary_embedding(cleaned_relations,
-                                                       all_samples,
-                                                       glove_embedding,
-                                                       embedding_size)
+    word_list = [word_relation[0]
+                 for word_relation in filter_word_relation_list]
+    relation_list = [word_relation[1]
+                     for word_relation in filter_word_relation_list]
+    word_vocabulary, word_embedding = build_vocabulary_embedding(
+        word_list, all_samples, glove_embedding, embedding_size)
+    relation_vocabulary, relation_embedding = build_vocabulary_embedding(
+        relation_list, [], glove_embedding, embedding_size)
+    #print(relation_list)
+    #print(len(word_embedding))
+    #print(len(relation_embedding))
     #print(embedding)
     #print(vocabulary)
     #print(len(vocabulary), len(embedding))
-    relation_numbers = transform_relations(cleaned_relations, vocabulary)
+    word_relation_numbers = transform_word_relations(all_word_relation_list,
+                                                     word_vocabulary,
+                                                     relation_vocabulary)
     #print(relation_numbers[0:10])
-    training_data = transform_questions(training_data, vocabulary)
+    training_data = transform_questions(training_data, word_vocabulary)
     #print(training_data[0:10])
-    testing_data = transform_questions(testing_data, vocabulary)
-    valid_data = transform_questions(valid_data, vocabulary)
-    return training_data, testing_data, valid_data, relation_numbers,\
-        vocabulary,embedding
+    testing_data = transform_questions(testing_data, word_vocabulary)
+    valid_data = transform_questions(valid_data, word_vocabulary)
+    return training_data, testing_data, valid_data, word_relation_numbers,\
+        word_vocabulary, word_embedding, relation_vocabulary, relation_embedding
 
 if __name__ == '__main__':
     gen_data(relation_file, training_file, test_file, valid_file, glove_file)

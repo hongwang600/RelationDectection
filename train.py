@@ -6,7 +6,8 @@ import torch.optim as optim
 
 from data import gen_data
 from model import SimilarityModel
-from utils import process_testing_samples, process_samples, ranking_sequence
+from utils import process_testing_samples, process_samples, ranking_sequence,\
+    ranking_word_relation
 from evaluate import evaluate_model
 from config import CONFIG as conf
 
@@ -17,43 +18,49 @@ model_path = conf['model_path']
 device = conf['device']
 lr = conf['learning_rate']
 
-def train(training_data, valid_data, vocabulary, embedding_dim, hidden_dim,
-          device, batch_size, lr, model_path, embedding, all_relations,
+def train(training_data, valid_data, embedding_dim, hidden_dim,
+          device, batch_size, lr, model_path, word_vocabulary, word_embedding,
+          relation_vocabulary, relation_embeddeing, all_relations,
           model=None, epoch=100):
     if model is None:
-        model = SimilarityModel(embedding_dim, hidden_dim, len(vocabulary),
-                                np.array(embedding), 1, device)
+        model = SimilarityModel(embedding_dim, hidden_dim,
+                                len(word_vocabulary),
+                                len(relation_embeddeing),
+                                np.array(word_embedding),
+                                np.array(relation_embeddeing), 1, device)
     loss_function = nn.MarginRankingLoss(0.5)
     model = model.to(device)
     optimizer = optim.Adam(model.parameters(), lr=lr)
     best_acc = 0
     for epoch_i in range(epoch):
-        #print('epoch', epoch_i)
+        print('epoch', epoch_i)
         #training_data = training_data[0:100]
         for i in range((len(training_data)-1)//batch_size+1):
             samples = training_data[i*batch_size:(i+1)*batch_size]
-            questions, relations, relation_set_lengths = process_samples(
+            questions, word_relations, relation_set_lengths = process_samples(
                 samples, all_relations, device)
             #print('got data')
+            #ranked_words, reverse_word_indexs = ranking_sequence(words)
             ranked_questions, reverse_question_indexs = \
                 ranking_sequence(questions)
-            ranked_relations, reverse_relation_indexs =\
-                ranking_sequence(relations)
             question_lengths = [len(question) for question in ranked_questions]
-            relation_lengths = [len(relation) for relation in ranked_relations]
-            #print(ranked_questions)
             pad_questions = torch.nn.utils.rnn.pad_sequence(ranked_questions)
-            pad_relations = torch.nn.utils.rnn.pad_sequence(ranked_relations)
-            #print(pad_questions)
             pad_questions = pad_questions.to(device)
-            pad_relations = pad_relations.to(device)
+            ranked_word_relations, reverse_word_relation_indexs =\
+                ranking_word_relation(word_relations)
+            word_relation_lengths = [len(word_relation[0])+len(word_relation[1])
+                                     for word_relation in ranked_word_relations]
             #print(pad_questions)
 
             model.zero_grad()
             model.init_hidden(device, sum(relation_set_lengths))
-            all_scores = model(pad_questions, pad_relations, device,
-                               reverse_question_indexs, reverse_relation_indexs,
-                               question_lengths, relation_lengths)
+            all_scores = model(pad_questions,
+                               reverse_question_indexs,
+                               question_lengths,
+                               ranked_word_relations,
+                               reverse_word_relation_indexs,
+                               word_relation_lengths,
+                               device)
             all_scores = all_scores.to('cpu')
             pos_scores = []
             neg_scores = []
@@ -71,16 +78,18 @@ def train(training_data, valid_data, vocabulary, embedding_dim, hidden_dim,
             loss.backward()
             optimizer.step()
         acc=evaluate_model(model, valid_data, batch_size, all_relations, device)
+        print('>accuracy:', acc)
         if acc > best_acc:
             torch.save(model, model_path)
     best_model = torch.load(model_path)
     return best_model
 
 if __name__ == '__main__':
-    training_data, testing_data, valid_data, all_relations, vocabulary, \
-        embedding=gen_data()
-    train(training_data, valid_data, vocabulary, embedding_dim, hidden_dim,
-          device, batch_size, lr, model_path, embedding, all_relations,
+    training_data, testing_data, valid_data, all_relations, word_vocabulary, \
+        word_embedding, relation_vocabulary, relation_embeddeing = gen_data()
+    train(training_data, valid_data, embedding_dim, hidden_dim,
+          device, batch_size, lr, model_path, word_vocabulary, word_embedding,
+          relation_vocabulary, relation_embeddeing, all_relations,
           model=None, epoch=100)
     #print(training_data[0:10])
     #print(testing_data[0:10])
