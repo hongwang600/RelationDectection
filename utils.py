@@ -22,8 +22,8 @@ def process_testing_samples(sample_list, all_relations, device):
         #print(relations[sample[0]])
         #print(sample)
         gold_relation_indexs.append(sample[0])
-        neg_word_relation = [build_word_relation(all_relations[index]) for
-                             index in sample[1]]
+        neg_word_relation = [build_word_relation(all_relations[index], device)
+                             for index in sample[1]]
         relation_set_lengths.append(len(neg_word_relation))
         word_relations += [pos_word_relation]+ neg_word_relation
         #questions += [question for i in range(relation_set_lengths[-1])]

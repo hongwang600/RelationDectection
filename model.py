@@ -129,8 +129,8 @@ class SimilarityModel(nn.Module):
                                                     question_lengths)
         word_relation_packed = \
             torch.nn.utils.rnn.pack_sequence(word_relation_embeddings)
-        #question_packed.to(device)
-        #relation_packed.to(device)
+        question_packed = question_packed.to(device)
+        word_relation_packed = word_relation_packed.to(device)
         #self.sentence_biLstm.to(device)
         #print(question_packed)
         #print(question_lengths)

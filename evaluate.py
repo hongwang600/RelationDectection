@@ -20,21 +20,28 @@ def evaluate_model(model, testing_data, batch_size, all_relations, device):
     #testing_data = testing_data[0:100]
     for i in range((len(testing_data)-1)//batch_size+1):
         samples = testing_data[i*batch_size:(i+1)*batch_size]
-        gold_relation_indexs, questions, relations, relation_set_lengths = \
-            process_testing_samples(samples, all_relations, device)
-        model.init_hidden(device, sum(relation_set_lengths))
+        gold_relation_indexs, questions, word_relations, relation_set_lengths =\
+        process_testing_samples(samples, all_relations, device)
         ranked_questions, reverse_question_indexs = \
             ranking_sequence(questions)
-        ranked_relations, reverse_relation_indexs =\
-            ranking_sequence(relations)
         question_lengths = [len(question) for question in ranked_questions]
-        relation_lengths = [len(relation) for relation in ranked_relations]
-        #print(ranked_questions)
         pad_questions = torch.nn.utils.rnn.pad_sequence(ranked_questions)
-        pad_relations = torch.nn.utils.rnn.pad_sequence(ranked_relations)
-        all_scores = model(pad_questions, pad_relations, device,
-                           reverse_question_indexs, reverse_relation_indexs,
-                           question_lengths, relation_lengths)
+        pad_questions = pad_questions.to(device)
+        ranked_word_relations, reverse_word_relation_indexs =\
+            ranking_word_relation(word_relations)
+        word_relation_lengths = [len(word_relation[0])+len(word_relation[1])
+                                 for word_relation in ranked_word_relations]
+        #print(pad_questions)
+
+        model.zero_grad()
+        model.init_hidden(device, sum(relation_set_lengths))
+        all_scores = model(pad_questions,
+                           reverse_question_indexs,
+                           question_lengths,
+                           ranked_word_relations,
+                           reverse_word_relation_indexs,
+                           word_relation_lengths,
+                           device)
         start_index = 0
         pred_indexs = []
         #print('len of relation_set:', len(relation_set_lengths))
