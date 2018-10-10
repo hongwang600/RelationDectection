@@ -6,7 +6,8 @@ import torch.optim as optim
 
 from data import gen_data
 from model import SimilarityModel
-from utils import process_testing_samples, process_samples, ranking_sequence
+from utils import process_testing_samples, process_samples, ranking_sequence,\
+    ranking_word_relation
 from config import CONFIG as conf
 
 model_path = conf['model_path']
@@ -63,8 +64,8 @@ def evaluate_model(model, testing_data, batch_size, all_relations, device):
 
 if __name__ == '__main__':
     model = torch.load(model_path)
-    training_data, testing_data, valid_data,\
-        all_relations, vocabulary,  embedding = gen_data()
-    model.init_embedding(np.array(embedding))
+    training_data, testing_data, valid_data, all_relations, word_vocabulary, \
+        word_embedding, relation_vocabulary, relation_embeddeing = gen_data()
+    #model.init_embedding(np.array(embedding))
     acc=evaluate_model(model, testing_data, batch_size, all_relations, device)
     print('accuracy:', acc)
