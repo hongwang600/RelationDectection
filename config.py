@@ -6,6 +6,7 @@ CONFIG= {
     'batch_size': 50,
     'num_clusters': 20,
     'epoch': 3,
+    'lambda': 0.1,
     'model_path': 'model.pt',
     'device': torch.device('cuda:0' if torch.cuda.is_available() else 'cpu'),
     'relation_file': './data/relation.2M.list',

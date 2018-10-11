@@ -6,7 +6,8 @@ import torch.optim as optim
 
 from data import gen_data
 from model import SimilarityModel
-from utils import process_testing_samples, process_samples, ranking_sequence
+from utils import process_testing_samples, process_samples, ranking_sequence,\
+    get_grad_params, copy_param_data
 from evaluate import evaluate_model
 from config import CONFIG as conf
 
@@ -16,10 +17,22 @@ batch_size = conf['batch_size']
 model_path = conf['model_path']
 device = conf['device']
 lr = conf['learning_rate']
+p_lambda = conf['lambda']
+
+def param_loss(model, means, fishers, p_lambda):
+    grad_params = get_grad_params(model)
+    loss = torch.tensor(0.0).to(device)
+    for i, param in enumerate(grad_params):
+        #print(fishers[i])
+        #print(param.data)
+        #print(means[i])
+        #print(p_lambda*fishers[i]*(param.data-means[i])**2)
+        loss += (p_lambda*fishers[i]*(param.data-means[i])**2).sum()
+    return loss
 
 def train(training_data, valid_data, vocabulary, embedding_dim, hidden_dim,
           device, batch_size, lr, model_path, embedding, all_relations,
-          model=None, epoch=100):
+          model=None, epoch=100, grad_means=[], grad_fishers=[]):
     if model is None:
         model = SimilarityModel(embedding_dim, hidden_dim, len(vocabulary),
                                 np.array(embedding), 1, device)
@@ -68,6 +81,15 @@ def train(training_data, valid_data, vocabulary, embedding_dim, hidden_dim,
             loss = loss_function(pos_scores, neg_scores,
                                  torch.ones(sum(relation_set_lengths)-
                                             len(relation_set_lengths)))
+            loss = loss.sum()
+            #loss.to(device)
+            #print(loss)
+            for i in range(len(grad_means)):
+                grad_mean = grad_means[i]
+                grad_fisher = grad_fishers[i]
+                #print(param_loss(model, grad_mean, grad_fisher, p_lambda))
+                loss += param_loss(model, grad_mean, grad_fisher,
+                                   p_lambda).to('cpu')
             loss.backward()
             optimizer.step()
         acc=evaluate_model(model, valid_data, batch_size, all_relations, device)
