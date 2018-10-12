@@ -27,7 +27,8 @@ def param_loss(model, means, fishers, p_lambda):
         #print(param.data)
         #print(means[i])
         #print(p_lambda*fishers[i]*(param.data-means[i])**2)
-        loss += (p_lambda*fishers[i]*(param.data-means[i])**2).sum()
+        loss += (p_lambda*fishers[i]*(param-means[i])**2).sum()
+    #print('loss', loss)
     return loss
 
 def train(training_data, valid_data, vocabulary, embedding_dim, hidden_dim,

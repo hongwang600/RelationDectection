@@ -23,6 +23,7 @@ num_clusters = conf['num_clusters']
 lr = conf['learning_rate']
 model_path = conf['model_path']
 epoch = conf['epoch']
+rand_seed = conf['rand_seed']
 
 def split_data(data_set, cluster_labels, num_clusters, shuffle_index):
     splited_data = [[] for i in range(num_clusters)]
@@ -112,7 +113,7 @@ if __name__ == '__main__':
         embedding=gen_data()
     cluster_labels = cluster_data(num_clusters)
     shuffle_index = [i for i in range(num_clusters)]
-    #random.shuffle(shuffle_index)
+    random.Random(rand_seed).shuffle(shuffle_index)
     splited_training_data = split_data(training_data, cluster_labels,
                                        num_clusters, shuffle_index)
     splited_valid_data = split_data(valid_data, cluster_labels,
@@ -151,8 +152,8 @@ if __name__ == '__main__':
                                                  current_train_data,
                                                  all_relations)
         #print(grad_mean)
-        grads_means.append(grad_mean)
-        grads_fishers.append(grad_fisher)
+        #grads_means.append(grad_mean)
+        #grads_fishers.append(grad_fisher)
         results = [evaluate_model(current_model, test_data, batch_size,
                                   all_relations, device)
                    for test_data in current_test_data]
