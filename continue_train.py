@@ -22,6 +22,7 @@ num_clusters = conf['num_clusters']
 lr = conf['learning_rate']
 model_path = conf['model_path']
 epoch = conf['epoch']
+random_seed = conf['random_seed']
 
 def split_data(data_set, cluster_labels, num_clusters, shuffle_index):
     splited_data = [[] for i in range(num_clusters)]
@@ -51,6 +52,7 @@ if __name__ == '__main__':
         embedding=gen_data()
     cluster_labels = cluster_data(num_clusters)
     shuffle_index = [i for i in range(num_clusters)]
+    random.seed(random_seed)
     random.shuffle(shuffle_index)
     splited_training_data = split_data(training_data, cluster_labels,
                                        num_clusters, shuffle_index)
