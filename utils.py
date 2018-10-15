@@ -53,3 +53,16 @@ def ranking_sequence(sequence):
     #print(indexs)
     sequence = [sequence[i] for i in indexs]
     return sequence, inverse_indexs
+
+def get_grad_params(model):
+    grad_params = []
+    for param in model.parameters():
+        if param.requires_grad:
+            grad_params.append(param)
+    return grad_params
+
+def copy_param_data(params):
+    copy_params = []
+    for param in params:
+        copy_params.append(param.data.clone())
+    return copy_params
