@@ -18,6 +18,7 @@ model_path = conf['model_path']
 device = conf['device']
 lr = conf['learning_rate']
 p_lambda = conf['lambda']
+loss_margin = conf['loss_margin']
 
 def param_loss(model, means, fishers, p_lambda):
     grad_params = get_grad_params(model)
@@ -33,11 +34,11 @@ def param_loss(model, means, fishers, p_lambda):
 
 def train(training_data, valid_data, vocabulary, embedding_dim, hidden_dim,
           device, batch_size, lr, model_path, embedding, all_relations,
-          model=None, epoch=100, grad_means=[], grad_fishers=[]):
+          model=None, epoch=100, grad_means=[], grad_fishers=[], loss_margin=2.0):
     if model is None:
         model = SimilarityModel(embedding_dim, hidden_dim, len(vocabulary),
                                 np.array(embedding), 1, device)
-    loss_function = nn.MarginRankingLoss(0.5)
+    loss_function = nn.MarginRankingLoss(loss_margin)
     model = model.to(device)
     optimizer = optim.Adam(model.parameters(), lr=lr)
     best_acc = 0

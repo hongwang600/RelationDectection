@@ -24,6 +24,7 @@ lr = conf['learning_rate']
 model_path = conf['model_path']
 epoch = conf['epoch']
 rand_seed = conf['rand_seed']
+loss_margin = conf['loss_margin']
 
 def split_data(data_set, cluster_labels, num_clusters, shuffle_index):
     splited_data = [[] for i in range(num_clusters)]
@@ -147,7 +148,7 @@ if __name__ == '__main__':
                               vocabulary, embedding_dim, hidden_dim,
                               device, batch_size, lr, model_path,
                               embedding, all_relations, current_model, epoch,
-                              grads_means, grads_fishers)
+                              grads_means, grads_fishers, loss_margin)
         grad_mean, grad_fisher = get_mean_fisher(current_model,
                                                  current_train_data,
                                                  all_relations)
