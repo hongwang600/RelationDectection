@@ -6,7 +6,7 @@ CONFIG= {
     'batch_size': 50,
     'num_clusters': 20,
     'epoch': 3,
-    'lambda': 1,
+    'lambda': 4,
     'rand_seed': 100,
     'loss_margin': 2.0,
     'model_path': 'model.pt',
