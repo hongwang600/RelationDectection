@@ -23,6 +23,7 @@ lr = conf['learning_rate']
 model_path = conf['model_path']
 epoch = conf['epoch']
 random_seed = conf['random_seed']
+task_memory_size = conf['task_memory_size']
 
 def split_data(data_set, cluster_labels, num_clusters, shuffle_index):
     splited_data = [[] for i in range(num_clusters)]
@@ -69,6 +70,7 @@ if __name__ == '__main__':
     #print(cluster_labels)
     seen_relations = []
     current_model = None
+    memory_data = []
     #np.set_printoptions(precision=3)
     for i in range(num_clusters):
         seen_relations += [data[0] for data in splited_training_data[i] if
@@ -84,7 +86,9 @@ if __name__ == '__main__':
         current_model = train(current_train_data, current_valid_data,
                               vocabulary, embedding_dim, hidden_dim,
                               device, batch_size, lr, model_path,
-                              embedding, all_relations, current_model, epoch)
+                              embedding, all_relations, current_model, epoch,
+                              memory_data)
+        memory_data.append(current_train_data[-task_memory_size:])
         results = [evaluate_model(current_model, test_data, batch_size,
                                   all_relations, device)
                    for test_data in current_test_data]

@@ -66,3 +66,11 @@ def copy_param_data(params):
     for param in params:
         copy_params.append(param.data.clone())
     return copy_params
+
+
+def copy_grad_data(model):
+    params = get_grad_params(model)
+    param_grads = []
+    for param in params:
+        param_grads.append(param.grad.view(-1).clone())
+    return torch.cat(param_grads)

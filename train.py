@@ -3,10 +3,12 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import torch.optim as optim
+import quadprog
 
 from data import gen_data
 from model import SimilarityModel
-from utils import process_testing_samples, process_samples, ranking_sequence
+from utils import process_testing_samples, process_samples, ranking_sequence,\
+    copy_grad_data, get_grad_params
 from evaluate import evaluate_model
 from config import CONFIG as conf
 
@@ -56,14 +58,75 @@ def feed_samples(model, samples, loss_function, all_relations, device):
                                     len(relation_set_lengths)))
     loss.backward()
 
+# copied from facebook open scource. (https://github.com/facebookresearch/
+# GradientEpisodicMemory/blob/master/model/gem.py)
+def project2cone2(gradient, memories, margin=0.5):
+    """
+        Solves the GEM dual QP described in the paper given a proposed
+        gradient "gradient", and a memory of task gradients "memories".
+        Overwrites "gradient" with the final projected update.
+        input:  gradient, p-vector
+        input:  memories, (t * p)-vector
+        output: x, p-vector
+    """
+    memories_np = memories.cpu().double().numpy()
+    gradient_np = gradient.cpu().contiguous().view(-1).double().numpy()
+    #print(memories_np.shape)
+    #print(gradient.shape)
+    t = memories_np.shape[0]
+    P = np.dot(memories_np, memories_np.transpose())
+    P = 0.5 * (P + P.transpose())
+    q = np.dot(memories_np, gradient_np) * -1
+    G = np.eye(t)
+    h = np.zeros(t) + margin
+    #print(memories_np)
+    #print(P, q, G, h)
+    v = quadprog.solve_qp(P, q, G, h)[0]
+    #print(v)
+    x = np.dot(v, memories_np) + gradient_np
+    gradient.copy_(torch.Tensor(x).view(-1))
+
+# copied from facebook open scource. (https://github.com/facebookresearch/
+# GradientEpisodicMemory/blob/master/model/gem.py)
+def overwrite_grad(pp, newgrad, grad_dims):
+    """
+        This is used to overwrite the gradients with a new gradient
+        vector, whenever violations occur.
+        pp: parameters
+        newgrad: corrected gradient
+        grad_dims: list storing number of parameters at each layer
+    """
+    cnt = 0
+    for param in pp:
+        if param.grad is not None:
+            beg = 0 if cnt == 0 else sum(grad_dims[:cnt])
+            en = sum(grad_dims[:cnt + 1])
+            this_grad = newgrad[beg: en].contiguous().view(
+                param.grad.data.size())
+            param.grad.data.copy_(this_grad)
+        cnt += 1
+
+def get_grads_memory_data(model, memory_data, loss_function,
+                          all_relations, device):
+    memory_data_grads = []
+    for data in memory_data:
+        feed_samples(model, data, loss_function, all_relations, device)
+        memory_data_grads.append(copy_grad_data(model))
+        #print(memory_data_grads[-1][:10])
+    if len(memory_data_grads) > 1:
+        return torch.stack(memory_data_grads)
+    elif len(memory_data_grads) == 1:
+        return memory_data_grads[0].view(1,-1)
+    else:
+        return []
 
 def train(training_data, valid_data, vocabulary, embedding_dim, hidden_dim,
           device, batch_size, lr, model_path, embedding, all_relations,
-          model=None, epoch=100):
+          model=None, epoch=100, memory_data=[]):
     if model is None:
         model = SimilarityModel(embedding_dim, hidden_dim, len(vocabulary),
                                 np.array(embedding), 1, device)
-    loss_function = nn.MarginRankingLoss(0.5)
+    loss_function = nn.MarginRankingLoss(2.0)
     model = model.to(device)
     optimizer = optim.Adam(model.parameters(), lr=lr)
     best_acc = 0
@@ -71,8 +134,19 @@ def train(training_data, valid_data, vocabulary, embedding_dim, hidden_dim,
         #print('epoch', epoch_i)
         #training_data = training_data[0:100]
         for i in range((len(training_data)-1)//batch_size+1):
+            memory_data_grads = get_grads_memory_data(model, memory_data,
+                                                      loss_function,
+                                                      all_relations,
+                                                      device)
+            #print(memory_data_grads)
             samples = training_data[i*batch_size:(i+1)*batch_size]
             feed_samples(model, samples, loss_function, all_relations, device)
+            sample_grad = copy_grad_data(model)
+            if len(memory_data_grads) > 0:
+                project2cone2(sample_grad, memory_data_grads)
+                grad_params = get_grad_params(model)
+                grad_dims = [param.data.numel() for param in grad_params]
+                overwrite_grad(grad_params, sample_grad, grad_dims)
             optimizer.step()
         acc=evaluate_model(model, valid_data, batch_size, all_relations, device)
         if acc > best_acc:
