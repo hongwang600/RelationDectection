@@ -8,6 +8,7 @@ CONFIG= {
     'epoch': 3,
     'random_seed': 100,
     'task_memory_size': 100,
+    'loss_margin': 2.0,
     'model_path': 'model.pt',
     'device': torch.device('cuda:0' if torch.cuda.is_available() else 'cpu'),
     'relation_file': './data/relation.2M.list',

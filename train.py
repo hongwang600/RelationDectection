@@ -18,6 +18,7 @@ batch_size = conf['batch_size']
 model_path = conf['model_path']
 device = conf['device']
 lr = conf['learning_rate']
+loss_margin = conf['loss_margin']
 
 def feed_samples(model, samples, loss_function, all_relations, device):
     questions, relations, relation_set_lengths = process_samples(
@@ -122,11 +123,11 @@ def get_grads_memory_data(model, memory_data, loss_function,
 
 def train(training_data, valid_data, vocabulary, embedding_dim, hidden_dim,
           device, batch_size, lr, model_path, embedding, all_relations,
-          model=None, epoch=100, memory_data=[]):
+          model=None, epoch=100, memory_data=[], loss_margin=2.0):
     if model is None:
         model = SimilarityModel(embedding_dim, hidden_dim, len(vocabulary),
                                 np.array(embedding), 1, device)
-    loss_function = nn.MarginRankingLoss(2.0)
+    loss_function = nn.MarginRankingLoss(loss_margin)
     model = model.to(device)
     optimizer = optim.Adam(model.parameters(), lr=lr)
     best_acc = 0
