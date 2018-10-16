@@ -98,4 +98,4 @@ if __name__ == '__main__':
         print_list(results)
     end_time = time.time()
     elapsed_time = end_time - start_time
-    time.strftime("%H:%M:%S", time.gmtime(elapsed_time))
+    print(time.strftime("%H:%M:%S", time.gmtime(elapsed_time)))
