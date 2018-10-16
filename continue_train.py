@@ -5,6 +5,7 @@ import torch.nn.functional as F
 import torch.optim as optim
 import sys
 import random
+import time
 
 from data import gen_data
 from model import SimilarityModel
@@ -70,6 +71,7 @@ if __name__ == '__main__':
     #print(cluster_labels)
     seen_relations = []
     current_model = None
+    start_time = time.time()
     #np.set_printoptions(precision=3)
     for i in range(num_clusters):
         seen_relations += [data[0] for data in splited_training_data[i] if
@@ -91,3 +93,6 @@ if __name__ == '__main__':
                                   all_relations, device)
                    for test_data in current_test_data]
         print_list(results)
+    end_time = time.time()
+    elapsed_time = end_time - start_time
+    time.strftime("%H:%M:%S", time.gmtime(elapsed_time))
