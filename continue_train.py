@@ -155,8 +155,8 @@ if __name__ == '__main__':
                                                  current_train_data,
                                                  all_relations)
         #print(grad_mean)
-        #grads_means.append(grad_mean)
-        #grads_fishers.append(grad_fisher)
+        grads_means.append(grad_mean)
+        grads_fishers.append(grad_fisher)
         results = [evaluate_model(current_model, test_data, batch_size,
                                   all_relations, device)
                    for test_data in current_test_data]
