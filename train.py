@@ -71,6 +71,7 @@ def project2cone2(gradient, memories, margin=0.5):
         output: x, p-vector
     """
     memories_np = memories.cpu().double().numpy()
+    memories_np = memories_np[~np.all(memories_np == 0, axis=1)]
     gradient_np = gradient.cpu().contiguous().view(-1).double().numpy()
     #print(memories_np.shape)
     #print(gradient.shape)
@@ -121,6 +122,14 @@ def get_grads_memory_data(model, memory_data, loss_function,
     else:
         return []
 
+def check_constrain(memory_grads, sample_grad):
+    sample_grad_ = torch.t(sample_grad.view(1, -1))
+    result = torch.matmul(memory_grads, sample_grad_)
+    if (result < 0).sum() != 0:
+        return False
+    else:
+        return True
+
 def train(training_data, valid_data, vocabulary, embedding_dim, hidden_dim,
           device, batch_size, lr, model_path, embedding, all_relations,
           model=None, epoch=100, memory_data=[], loss_margin=2.0):
@@ -144,10 +153,11 @@ def train(training_data, valid_data, vocabulary, embedding_dim, hidden_dim,
             feed_samples(model, samples, loss_function, all_relations, device)
             sample_grad = copy_grad_data(model)
             if len(memory_data_grads) > 0:
-                project2cone2(sample_grad, memory_data_grads)
-                grad_params = get_grad_params(model)
-                grad_dims = [param.data.numel() for param in grad_params]
-                overwrite_grad(grad_params, sample_grad, grad_dims)
+                if not check_constrain(memory_data_grads, sample_grad):
+                    project2cone2(sample_grad, memory_data_grads)
+                    grad_params = get_grad_params(model)
+                    grad_dims = [param.data.numel() for param in grad_params]
+                    overwrite_grad(grad_params, sample_grad, grad_dims)
             optimizer.step()
         acc=evaluate_model(model, valid_data, batch_size, all_relations, device)
         if acc > best_acc:
