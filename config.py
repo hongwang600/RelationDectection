@@ -7,7 +7,7 @@ CONFIG= {
     'num_clusters': 20,
     'epoch': 3,
     'lambda': 1,
-    'rand_seed': 100,
+    'rand_seed': 200,
     'loss_margin': 0.5,
     'model_path': 'model.pt',
     'device': torch.device('cuda:0' if torch.cuda.is_available() else 'cpu'),
