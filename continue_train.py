@@ -41,14 +41,21 @@ def remove_unseen_relation(dataset, seen_relations):
     for data in dataset:
         neg_cands = [cand for cand in data[1] if cand in seen_relations]
         if len(neg_cands) > 0:
-            data[1] = neg_cands
-            cleaned_data.append(data)
+            #data[1] = neg_cands
+            cleaned_data.append([data[0], neg_canda, data[2]])
     return cleaned_data
 
 def print_list(result):
     for num in result:
         sys.stdout.write('%.3f, ' %num)
     print('')
+
+def sample_memory_data(sample_pool, sample_size):
+    if len(sample_pool) > 0:
+        sample_indexs = random.sample(range(len(sample_pool), sample_size))
+        return [sample_pool[index] for index in sample_indexs]
+    else:
+        return []
 
 if __name__ == '__main__':
     training_data, testing_data, valid_data, all_relations, vocabulary, \
@@ -73,6 +80,7 @@ if __name__ == '__main__':
     seen_relations = []
     current_model = None
     memory_data = []
+    all_seen_samples = []
     start_time = time.time()
     #np.set_printoptions(precision=3)
     for i in range(num_clusters):
@@ -86,15 +94,16 @@ if __name__ == '__main__':
         for j in range(i+1):
             current_test_data.append(
                 remove_unseen_relation(splited_test_data[j], seen_relations))
+        memory_data = sample_memory_data(all_seen_samples, task_memory_size)
         current_model = train(current_train_data, current_valid_data,
                               vocabulary, embedding_dim, hidden_dim,
                               device, batch_size, lr, model_path,
                               embedding, all_relations, current_model, epoch,
                               memory_data, loss_margin)
-        memory_data.append(current_train_data[-task_memory_size:])
         results = [evaluate_model(current_model, test_data, batch_size,
                                   all_relations, device)
                    for test_data in current_test_data]
+        all_seen_samples += current_train_data
         print_list(results)
     end_time = time.time()
     elapsed_time = end_time - start_time

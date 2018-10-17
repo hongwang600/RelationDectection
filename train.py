@@ -70,21 +70,10 @@ def project2cone2(gradient, memories, margin=0.5):
         input:  memories, (t * p)-vector
         output: x, p-vector
     """
-    memories_np = memories.cpu().double().numpy()
+    memories_np = memories.cpu().view(-1).double().numpy()
     gradient_np = gradient.cpu().contiguous().view(-1).double().numpy()
-    #print(memories_np.shape)
-    #print(gradient.shape)
-    t = memories_np.shape[0]
-    P = np.dot(memories_np, memories_np.transpose())
-    P = 0.5 * (P + P.transpose())
-    q = np.dot(memories_np, gradient_np) * -1
-    G = np.eye(t)
-    h = np.zeros(t) + margin
-    #print(memories_np)
-    #print(P, q, G, h)
-    v = quadprog.solve_qp(P, q, G, h)[0]
-    #print(v)
-    x = np.dot(v, memories_np) + gradient_np
+    x = gradient_np - (np.dot(gradient_np, memories_np)/
+                       np.dot(memories_np, memories_np)) * memories_np
     gradient.copy_(torch.Tensor(x).view(-1))
 
 # copied from facebook open scource. (https://github.com/facebookresearch/
@@ -144,10 +133,12 @@ def train(training_data, valid_data, vocabulary, embedding_dim, hidden_dim,
             feed_samples(model, samples, loss_function, all_relations, device)
             sample_grad = copy_grad_data(model)
             if len(memory_data_grads) > 0:
-                project2cone2(sample_grad, memory_data_grads)
-                grad_params = get_grad_params(model)
-                grad_dims = [param.data.numel() for param in grad_params]
-                overwrite_grad(grad_params, sample_grad, grad_dims)
+                if torch.matmul(memory_data_grads,
+                                torch.t(sample_grad.view(1,-1))) < 0:
+                    project2cone2(sample_grad, memory_data_grads)
+                    grad_params = get_grad_params(model)
+                    grad_dims = [param.data.numel() for param in grad_params]
+                    overwrite_grad(grad_params, sample_grad, grad_dims)
             optimizer.step()
         acc=evaluate_model(model, valid_data, batch_size, all_relations, device)
         if acc > best_acc:
