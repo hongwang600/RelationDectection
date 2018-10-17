@@ -7,7 +7,7 @@ CONFIG= {
     'num_clusters': 20,
     'epoch': 3,
     'random_seed': 100,
-    'task_memory_size': 100,
+    'task_memory_size': 50,
     'loss_margin': 0.5,
     'model_path': 'model.pt',
     'device': torch.device('cuda:0' if torch.cuda.is_available() else 'cpu'),
