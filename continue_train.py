@@ -56,12 +56,13 @@ def gen_fisher(model, train_data, all_relations):
     #testing_data = testing_data[0:100]
     softmax_func = nn.LogSoftmax()
     loss_func = nn.NLLLoss()
-    batch_epoch = (len(train_data)-1)//batch_size+1
+    fisher_batch_size = 1
+    batch_epoch = (len(train_data)-1)//fisher_batch_size+1
     fisher = None
     for i in range(batch_epoch):
         model.zero_grad()
         losses = []
-        samples = train_data[i*batch_size:(i+1)*batch_size]
+        samples = train_data[i*fisher_batch_size:(i+1)*fisher_batch_size]
         questions, relations, relation_set_lengths = process_samples(
             samples, all_relations, device)
         #print('got data')
