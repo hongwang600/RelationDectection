@@ -51,6 +51,7 @@ def print_list(result):
     print('')
 
 if __name__ == '__main__':
+    random_seed = int(sys.argv[1])
     training_data, testing_data, valid_data, all_relations, vocabulary, \
         embedding=gen_data()
     cluster_labels = cluster_data(num_clusters)
