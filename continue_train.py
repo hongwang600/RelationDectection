@@ -95,6 +95,7 @@ if __name__ == '__main__':
             current_test_data.append(
                 remove_unseen_relation(splited_test_data[j], seen_relations))
         memory_data = sample_memory_data(all_seen_samples, task_memory_size)
+        #print(memory_data)
         current_model = train(current_train_data, current_valid_data,
                               vocabulary, embedding_dim, hidden_dim,
                               device, batch_size, lr, model_path,

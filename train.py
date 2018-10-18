@@ -98,8 +98,12 @@ def overwrite_grad(pp, newgrad, grad_dims):
 
 def get_grads_memory_data(model, memory_data, loss_function,
                           all_relations, device):
+    if len(memory_data) == 0:
+        return []
     memory_data_grads = []
-    for data in memory_data:
+    memory_data_set = [memory_data]
+    for data in memory_data_set:
+        #print(data)
         feed_samples(model, data, loss_function, all_relations, device)
         memory_data_grads.append(copy_grad_data(model))
         #print(memory_data_grads[-1][:10])
