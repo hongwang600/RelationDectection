@@ -42,7 +42,7 @@ def remove_unseen_relation(dataset, seen_relations):
         neg_cands = [cand for cand in data[1] if cand in seen_relations]
         if len(neg_cands) > 0:
             #data[1] = neg_cands
-            cleaned_data.append([data[0], neg_canda, data[2]])
+            cleaned_data.append([data[0], neg_cands, data[2]])
     return cleaned_data
 
 def print_list(result):
@@ -52,7 +52,7 @@ def print_list(result):
 
 def sample_memory_data(sample_pool, sample_size):
     if len(sample_pool) > 0:
-        sample_indexs = random.sample(range(len(sample_pool), sample_size))
+        sample_indexs = random.sample(range(len(sample_pool)), sample_size)
         return [sample_pool[index] for index in sample_indexs]
     else:
         return []
