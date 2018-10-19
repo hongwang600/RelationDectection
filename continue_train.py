@@ -26,6 +26,7 @@ model_path = conf['model_path']
 epoch = conf['epoch']
 rand_seed = conf['rand_seed']
 loss_margin = conf['loss_margin']
+data_per_task = conf['data_per_task']
 
 def split_data(data_set, cluster_labels, num_clusters, shuffle_index):
     splited_data = [[] for i in range(num_clusters)]
@@ -41,9 +42,9 @@ def remove_unseen_relation(dataset, seen_relations):
     for data in dataset:
         neg_cands = [cand for cand in data[1] if cand in seen_relations]
         if len(neg_cands) > 0:
-            #data[1] = neg_cands
-            #cleaned_data.append(data)
-            cleaned_data.append([data[0], neg_cands, data[2]])
+            data[1] = neg_cands
+            cleaned_data.append(data)
+            #cleaned_data.append([data[0], neg_cands, data[2]])
     return cleaned_data
 
 def print_list(result):
@@ -134,10 +135,13 @@ if __name__ == '__main__':
     #print(cluster_labels)
     seen_relations = []
     current_model = None
-    grads_means = []
-    grads_fishers = []
+    #grads_means = []
+    #grads_fishers = []
+    grad_mean = []
+    grad_fisher = []
     start_time = time.time()
     #np.set_printoptions(precision=3)
+    saved_data = []
     for i in range(num_clusters):
         seen_relations += [data[0] for data in splited_training_data[i] if
                           data[0] not in seen_relations]
@@ -153,13 +157,16 @@ if __name__ == '__main__':
                               vocabulary, embedding_dim, hidden_dim,
                               device, batch_size, lr, model_path,
                               embedding, all_relations, current_model, epoch,
-                              grads_means, grads_fishers, loss_margin)
+                              grad_mean, grad_fisher, loss_margin)
+        saved_data += current_train_data[-data_per_task:]
         grad_mean, grad_fisher = get_mean_fisher(current_model,
-                                                 current_train_data,
+                                                 saved_data,
                                                  all_relations)
+        grad_mean = [grad_mean]
+        grad_fisher = [grad_fisher]
         #print(grad_mean)
-        grads_means.append(grad_mean)
-        grads_fishers.append(grad_fisher)
+        #grads_means.append(grad_mean)
+        #grads_fishers.append(grad_fisher)
         results = [evaluate_model(current_model, test_data, batch_size,
                                   all_relations, device)
                    for test_data in current_test_data]
