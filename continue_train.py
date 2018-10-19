@@ -51,8 +51,8 @@ def print_list(result):
         sys.stdout.write('%.3f, ' %num)
     print('')
 
-def run_sequence(trainin_data, testing_data, valid_data, all_relations,
-                 vocabulaty,embedding, cluster_labels, num_clusters,
+def run_sequence(training_data, testing_data, valid_data, all_relations,
+                 vocabulary,embedding, cluster_labels, num_clusters,
                  shuffle_index):
     splited_training_data = split_data(training_data, cluster_labels,
                                        num_clusters, shuffle_index)
@@ -69,7 +69,6 @@ def run_sequence(trainin_data, testing_data, valid_data, all_relations,
     #print(cluster_labels)
     seen_relations = []
     current_model = None
-    start_time = time.time()
     sequence_results = []
     #np.set_printoptions(precision=3)
     for i in range(num_clusters):
@@ -109,9 +108,10 @@ if __name__ == '__main__':
     cluster_labels = cluster_data(num_clusters)
     shuffle_index = [i for i in range(num_clusters)]
     random.seed(random_seed)
-    random.shuffle(shuffle_index)
+    start_time = time.time()
     all_results = []
     for i in range(sequence_times):
+        random.shuffle(shuffle_index)
         all_results.append(run_sequence(training_data, testing_data,
                                         valid_data, all_relations,
                                         vocabulary, embedding, cluster_labels,
