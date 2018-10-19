@@ -26,6 +26,7 @@ epoch = conf['epoch']
 random_seed = conf['random_seed']
 task_memory_size = conf['task_memory_size']
 loss_margin = conf['loss_margin']
+sequence_times = conf['sequence_times']
 
 def split_data(data_set, cluster_labels, num_clusters, shuffle_index):
     splited_data = [[] for i in range(num_clusters)]
