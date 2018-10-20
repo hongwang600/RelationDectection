@@ -131,5 +131,6 @@ if __name__ == '__main__':
                                         num_clusters, shuffle_index))
     print_avg_results(all_results)
     end_time = time.time()
-    elapsed_time = end_time - start_time
+    #elapsed_time = end_time - start_time
+    elapsed_time = (end_time - start_time) / sequence_times
     print(time.strftime("%H:%M:%S", time.gmtime(elapsed_time)))
