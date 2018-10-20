@@ -160,6 +160,7 @@ def run_sequence(training_data, testing_data, valid_data, all_relations,
         results = [evaluate_model(current_model, test_data, batch_size,
                                   all_relations, device)
                    for test_data in current_test_data]
+        print_list(results)
         sequence_results.append(np.array(results))
     return sequence_results
 
