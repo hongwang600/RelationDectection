@@ -53,7 +53,8 @@ def print_list(result):
 
 def sample_memory_data(sample_pool, sample_size):
     if len(sample_pool) > 0:
-        sample_indexs = random.sample(range(len(sample_pool)), sample_size)
+        sample_indexs = random.sample(range(len(sample_pool)),
+                                      min(sample_size, len(sample_pool)))
         return [sample_pool[index] for index in sample_indexs]
     else:
         return []
