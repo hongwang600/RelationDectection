@@ -144,6 +144,7 @@ def train(training_data, valid_data, vocabulary, embedding_dim, hidden_dim,
         #print('epoch', epoch_i)
         #training_data = training_data[0:100]
         for i in range((len(training_data)-1)//batch_size+1):
+            '''
             memory_data_grads = get_grads_memory_data(model, memory_data,
                                                       loss_function,
                                                       all_relations,
@@ -158,6 +159,12 @@ def train(training_data, valid_data, vocabulary, embedding_dim, hidden_dim,
                     grad_params = get_grad_params(model)
                     grad_dims = [param.data.numel() for param in grad_params]
                     overwrite_grad(grad_params, sample_grad, grad_dims)
+                    '''
+            samples = training_data[i*batch_size:(i+1)*batch_size]
+            all_samples = samples
+            for data in memory_data:
+                all_samples += data
+            feed_samples(model, all_samples, loss_function, all_relations, device)
             optimizer.step()
         acc=evaluate_model(model, valid_data, batch_size, all_relations, device)
         if acc > best_acc:
