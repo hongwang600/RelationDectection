@@ -10,7 +10,7 @@ import time
 from data import gen_data
 from model import SimilarityModel
 from utils import process_testing_samples, process_samples, ranking_sequence
-from evaluate import evaluate_model
+from evaluate import evaluate_model, compute_diff_scores
 from data_partition import cluster_data
 from config import CONFIG as conf
 from train import train
@@ -52,7 +52,12 @@ def print_list(result):
         sys.stdout.write('%.3f, ' %num)
     print('')
 
-def select_samples(samples):
+def select_samples(model, samples, task_memory_size, all_relations):
+    diff_scores = compute_diff_scores(model, samples, batch_size, all_relations,
+                                      device)
+    #print(diff_scores)
+    selected_index = np.argsort(diff_scores)[:task_memory_size]
+    return [samples[i] for i in selected_index]
 
 def run_sequence(training_data, testing_data, valid_data, all_relations,
                  vocabulary,embedding, cluster_labels, num_clusters,
@@ -91,10 +96,12 @@ def run_sequence(training_data, testing_data, valid_data, all_relations,
                               device, batch_size, lr, model_path,
                               embedding, all_relations, current_model, epoch,
                               memory_data, loss_margin)
-        memory_data.append(current_train_data[-task_memory_size:])
+        memory_data.append(select_samples(current_model, current_train_data,
+                                          task_memory_size, all_relations))
         results = [evaluate_model(current_model, test_data, batch_size,
                                   all_relations, device)
                    for test_data in current_test_data]
+        print_list(results)
         sequence_results.append(np.array(results))
     return sequence_results
 
