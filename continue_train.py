@@ -52,6 +52,8 @@ def print_list(result):
         sys.stdout.write('%.3f, ' %num)
     print('')
 
+def select_samples(samples):
+
 def run_sequence(training_data, testing_data, valid_data, all_relations,
                  vocabulary,embedding, cluster_labels, num_clusters,
                  shuffle_index):
