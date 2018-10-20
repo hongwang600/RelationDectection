@@ -27,6 +27,7 @@ epoch = conf['epoch']
 rand_seed = conf['rand_seed']
 loss_margin = conf['loss_margin']
 data_per_task = conf['data_per_task']
+sequence_times = conf['sequence_times']
 
 def split_data(data_set, cluster_labels, num_clusters, shuffle_index):
     splited_data = [[] for i in range(num_clusters)]
@@ -113,13 +114,9 @@ def get_mean_fisher(model, train_data, all_relations):
     grad_fisher = gen_fisher(model, train_data, all_relations)
     return grad_mean, grad_fisher
 
-if __name__ == '__main__':
-    rand_seed = int(sys.argv[1])
-    training_data, testing_data, valid_data, all_relations, vocabulary, \
-        embedding=gen_data()
-    cluster_labels = cluster_data(num_clusters)
-    shuffle_index = [i for i in range(num_clusters)]
-    random.Random(rand_seed).shuffle(shuffle_index)
+def run_sequence(training_data, testing_data, valid_data, all_relations,
+                 vocabulary,embedding, cluster_labels, num_clusters,
+                 shuffle_index):
     splited_training_data = split_data(training_data, cluster_labels,
                                        num_clusters, shuffle_index)
     splited_valid_data = split_data(valid_data, cluster_labels,
@@ -139,9 +136,9 @@ if __name__ == '__main__':
     #grads_fishers = []
     grad_mean = []
     grad_fisher = []
-    start_time = time.time()
     #np.set_printoptions(precision=3)
     saved_data = []
+    sequence_results = []
     for i in range(num_clusters):
         seen_relations += [data[0] for data in splited_training_data[i] if
                           data[0] not in seen_relations]
@@ -170,7 +167,33 @@ if __name__ == '__main__':
         results = [evaluate_model(current_model, test_data, batch_size,
                                   all_relations, device)
                    for test_data in current_test_data]
-        print_list(results)
+        sequence_results.append(np.array(results))
+    return sequence_results
+
+def print_avg_results(all_results):
+    avg_result = []
+    for i in range(len(all_results[0])):
+        avg_result.append(np.average([result[i] for result in all_results], 0))
+    for line_result in avg_result:
+        print_list(line_result)
+    return avg_result
+
+if __name__ == '__main__':
+    rand_seed = int(sys.argv[1])
+    training_data, testing_data, valid_data, all_relations, vocabulary, \
+        embedding=gen_data()
+    cluster_labels = cluster_data(num_clusters)
+    shuffle_index = [i for i in range(num_clusters)]
+    random.seed(random_seed)
+    start_time = time.time()
+    all_results = []
+    for i in range(sequence_times):
+        random.shuffle(shuffle_index)
+        all_results.append(run_sequence(training_data, testing_data,
+                                        valid_data, all_relations,
+                                        vocabulary, embedding, cluster_labels,
+                                        num_clusters, shuffle_index))
+    print_avg_results(all_results)
     end_time = time.time()
     elapsed_time = end_time - start_time
     print(time.strftime("%H:%M:%S", time.gmtime(elapsed_time)))
