@@ -189,6 +189,7 @@ if __name__ == '__main__':
     start_time = time.time()
     all_results = []
     for i in range(sequence_times):
+        random.seed(random_seed+100*i)
         random.shuffle(shuffle_index)
         all_results.append(run_sequence(training_data, testing_data,
                                         valid_data, all_relations,
