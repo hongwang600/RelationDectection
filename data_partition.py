@@ -17,9 +17,11 @@ def cluster_data(num_clusters=20):
     #print(kmeans.inertia_)
     labels = kmeans.labels_
     cluster_index = {}
+    relation_embedding_set = {}
     for i in range(len(relation_index)):
         cluster_index[relation_index[i]] = labels[i]
-    return cluster_index
+        relation_embedding_set[relation_index[i]] = relation_embeddings[i]
+    return cluster_index, relation_embedding_set
 
 if __name__ == '__main__':
     cluster_index = cluster_data(num_clusters=20)

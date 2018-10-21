@@ -6,6 +6,7 @@ import torch.optim as optim
 import sys
 import random
 import time
+from sklearn.cluster import KMeans
 
 from data import gen_data
 from model import SimilarityModel
@@ -52,17 +53,41 @@ def print_list(result):
         sys.stdout.write('%.3f, ' %num)
     print('')
 
-def select_samples(model, samples, task_memory_size, all_relations):
+def select_samples(model, samples, task_memory_size, all_relations,
+                   relation_embeding_set):
     diff_scores = compute_diff_scores(model, samples, batch_size, all_relations,
                                       device)
-    #print(diff_scores)
-    #selected_index = (np.argsort(diff_scores)[::-1])[:task_memory_size]
-    selected_index = np.argsort(diff_scores)[:task_memory_size]
-    return [samples[i] for i in selected_index]
+    distinct_relations = []
+    for this_sample in samples:
+        if this_sample[0] not in distinct_relations:
+            distinct_relations.append(this_sample[0])
+    #print(distinct_relations)
+    distinct_embeds = [relation_embeding_set[i] for i in distinct_relations]
+    num_clusters = min(task_memory_size, len(distinct_embeds))
+    kmeans = KMeans(n_clusters=num_clusters,
+                    random_state=0).fit(distinct_embeds)
+    labels = kmeans.labels_
+    cluster_index = {}
+    for i in range(len(distinct_relations)):
+        cluster_index[distinct_relations[i]] = labels[i]
+    sample_in_cluster = [0 for i in range(num_clusters)]
+    selected_samples = []
+    total_num_samples = 0
+    for this_sample in samples:
+        cluster_label = cluster_index[this_sample[0]]
+        if sample_in_cluster[cluster_label] < 1:
+            selected_samples.append(this_sample)
+            sample_in_cluster[cluster_label] += 1
+            total_num_samples += 1
+        if total_num_samples == num_clusters:
+            break
+    selected_samples += random.sample(samples, min(task_memory_size-num_clusters,
+                                                 len(samples)))
+    return selected_samples
 
 def run_sequence(training_data, testing_data, valid_data, all_relations,
                  vocabulary,embedding, cluster_labels, num_clusters,
-                 shuffle_index):
+                 shuffle_index, relation_embeding_set):
     splited_training_data = split_data(training_data, cluster_labels,
                                        num_clusters, shuffle_index)
     splited_valid_data = split_data(valid_data, cluster_labels,
@@ -98,7 +123,8 @@ def run_sequence(training_data, testing_data, valid_data, all_relations,
                               embedding, all_relations, current_model, epoch,
                               memory_data, loss_margin)
         memory_data.append(select_samples(current_model, current_train_data,
-                                          task_memory_size, all_relations))
+                                          task_memory_size, all_relations,
+                                          relation_embeding_set))
         results = [evaluate_model(current_model, test_data, batch_size,
                                   all_relations, device)
                    for test_data in current_test_data]
@@ -118,7 +144,7 @@ if __name__ == '__main__':
     random_seed = int(sys.argv[1])
     training_data, testing_data, valid_data, all_relations, vocabulary, \
         embedding=gen_data()
-    cluster_labels = cluster_data(num_clusters)
+    cluster_labels, relation_embeding_set = cluster_data(num_clusters)
     shuffle_index = [i for i in range(num_clusters)]
     random.seed(random_seed)
     start_time = time.time()
@@ -129,7 +155,8 @@ if __name__ == '__main__':
         all_results.append(run_sequence(training_data, testing_data,
                                         valid_data, all_relations,
                                         vocabulary, embedding, cluster_labels,
-                                        num_clusters, shuffle_index))
+                                        num_clusters, shuffle_index,
+                                        relation_embeding_set))
     print_avg_results(all_results)
     end_time = time.time()
     elapsed_time = (end_time - start_time) / sequence_times
