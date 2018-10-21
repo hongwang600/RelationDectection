@@ -63,7 +63,8 @@ def select_samples(model, samples, task_memory_size, all_relations,
             distinct_relations.append(this_sample[0])
     #print(distinct_relations)
     distinct_embeds = [relation_embeding_set[i] for i in distinct_relations]
-    num_clusters = min(task_memory_size, len(distinct_embeds))
+    #num_clusters = min(task_memory_size, len(distinct_embeds))
+    num_clusters = min(10, len(distinct_embeds))
     kmeans = KMeans(n_clusters=num_clusters,
                     random_state=0).fit(distinct_embeds)
     labels = kmeans.labels_
