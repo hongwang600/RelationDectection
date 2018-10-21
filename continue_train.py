@@ -24,7 +24,7 @@ num_clusters = conf['num_clusters']
 lr = conf['learning_rate']
 model_path = conf['model_path']
 epoch = conf['epoch']
-rand_seed = conf['rand_seed']
+random_seed = conf['rand_seed']
 loss_margin = conf['loss_margin']
 sequence_times = conf['sequence_times']
 
@@ -181,7 +181,8 @@ if __name__ == '__main__':
     start_time = time.time()
     all_results = []
     for i in range(sequence_times):
-        random.Random(rand_seed).shuffle(shuffle_index)
+        random.seed(random_seed+100*i)
+        random.shuffle(shuffle_index)
         all_results.append(run_sequence(training_data, testing_data,
                                         valid_data, all_relations,
                                         vocabulary, embedding, cluster_labels,
