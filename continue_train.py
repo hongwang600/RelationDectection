@@ -56,7 +56,7 @@ def select_samples(model, samples, task_memory_size, all_relations):
     diff_scores = compute_diff_scores(model, samples, batch_size, all_relations,
                                       device)
     #print(diff_scores)
-    selected_index = np.argsort(diff_scores)[:task_memory_size]
+    selected_index = (np.argsort(diff_scores)[::-1])[:task_memory_size]
     return [samples[i] for i in selected_index]
 
 def run_sequence(training_data, testing_data, valid_data, all_relations,
