@@ -4,6 +4,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 import torch.optim as optim
 import quadprog
+import random
 
 from data import gen_data
 from model import SimilarityModel
@@ -19,6 +20,14 @@ model_path = conf['model_path']
 device = conf['device']
 lr = conf['learning_rate']
 loss_margin = conf['loss_margin']
+
+def sample_memory_data(sample_pool, sample_size):
+    if len(sample_pool) > 0:
+        sample_indexs = random.sample(range(len(sample_pool)),
+                                      min(sample_size, len(sample_pool)))
+        return [sample_pool[index] for index in sample_indexs]
+    else:
+        return []
 
 def feed_samples(model, samples, loss_function, all_relations, device):
     questions, relations, relation_set_lengths = process_samples(
@@ -116,7 +125,8 @@ def get_grads_memory_data(model, memory_data, loss_function,
 
 def train(training_data, valid_data, vocabulary, embedding_dim, hidden_dim,
           device, batch_size, lr, model_path, embedding, all_relations,
-          model=None, epoch=100, memory_data=[], loss_margin=2.0):
+          model=None, epoch=100, all_seen_samples=[],
+          task_memory_size=100, loss_margin=2.0):
     if model is None:
         model = SimilarityModel(embedding_dim, hidden_dim, len(vocabulary),
                                 np.array(embedding), 1, device)
@@ -128,6 +138,7 @@ def train(training_data, valid_data, vocabulary, embedding_dim, hidden_dim,
         #print('epoch', epoch_i)
         #training_data = training_data[0:100]
         for i in range((len(training_data)-1)//batch_size+1):
+            memory_data = sample_memory_data(all_seen_samples, task_memory_size)
             memory_data_grads = get_grads_memory_data(model, memory_data,
                                                       loss_function,
                                                       all_relations,

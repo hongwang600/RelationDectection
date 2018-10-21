@@ -92,13 +92,13 @@ def run_sequence(training_data, testing_data, valid_data, all_relations,
         for j in range(i+1):
             current_test_data.append(
                 remove_unseen_relation(splited_test_data[j], seen_relations))
-        memory_data = sample_memory_data(all_seen_samples, task_memory_size)
+        #memory_data = sample_memory_data(all_seen_samples, task_memory_size)
         #print(memory_data)
         current_model = train(current_train_data, current_valid_data,
                               vocabulary, embedding_dim, hidden_dim,
                               device, batch_size, lr, model_path,
                               embedding, all_relations, current_model, epoch,
-                              memory_data, loss_margin)
+                              all_seen_samples, task_memory_size, loss_margin)
         results = [evaluate_model(current_model, test_data, batch_size,
                                   all_relations, device)
                    for test_data in current_test_data]
