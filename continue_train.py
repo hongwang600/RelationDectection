@@ -27,6 +27,7 @@ random_seed = conf['random_seed']
 task_memory_size = conf['task_memory_size']
 loss_margin = conf['loss_margin']
 sequence_times = conf['sequence_times']
+num_new_relations = conf['num_new_relations']
 
 def split_data(data_set, cluster_labels, num_clusters, shuffle_index):
     splited_data = [[] for i in range(num_clusters)]
@@ -52,9 +53,23 @@ def print_list(result):
         sys.stdout.write('%.3f, ' %num)
     print('')
 
+def replace_memory_data(memory_data, new_seen_relations, num_new_relations):
+    new_memory_data = []
+    for data_list in memory_data:
+        new_data_list = []
+        for data in data_list:
+            new_data = [data[0],
+                        data[1]+random.sample(new_seen_relations,
+                                              min(num_new_relations,
+                                                  len(new_seen_relations))),
+                        data[2]]
+            new_data_list.append(new_data)
+        new_memory_data.append(new_data_list)
+    return new_memory_data
+
 def run_sequence(training_data, testing_data, valid_data, all_relations,
                  vocabulary,embedding, cluster_labels, num_clusters,
-                 shuffle_index):
+                 shuffle_index, num_new_relations):
     splited_training_data = split_data(training_data, cluster_labels,
                                        num_clusters, shuffle_index)
     splited_valid_data = split_data(valid_data, cluster_labels,
@@ -74,8 +89,11 @@ def run_sequence(training_data, testing_data, valid_data, all_relations,
     sequence_results = []
     #np.set_printoptions(precision=3)
     for i in range(num_clusters):
-        seen_relations += [data[0] for data in splited_training_data[i] if
-                          data[0] not in seen_relations]
+        new_seen_relations = [data[0] for data in splited_training_data[i] if
+                              data[0] not in seen_relations]
+        seen_relations += new_seen_relations
+        new_memory_data = replace_memory_data(
+            memory_data, new_seen_relations, num_new_relations)
         current_train_data = remove_unseen_relation(splited_training_data[i],
                                                     seen_relations)
         current_valid_data = remove_unseen_relation(splited_valid_data[i],
@@ -88,8 +106,13 @@ def run_sequence(training_data, testing_data, valid_data, all_relations,
                               vocabulary, embedding_dim, hidden_dim,
                               device, batch_size, lr, model_path,
                               embedding, all_relations, current_model, epoch,
-                              memory_data, loss_margin)
+                              new_memory_data, loss_margin)
         memory_data.append(current_train_data[-task_memory_size:])
+        '''
+        if len(new_memory_data)>0:
+            print(memory_data[0][0])
+            print(new_memory_data[0][0])
+            '''
         results = [evaluate_model(current_model, test_data, batch_size,
                                   all_relations, device)
                    for test_data in current_test_data]
@@ -119,7 +142,8 @@ if __name__ == '__main__':
         all_results.append(run_sequence(training_data, testing_data,
                                         valid_data, all_relations,
                                         vocabulary, embedding, cluster_labels,
-                                        num_clusters, shuffle_index))
+                                        num_clusters, shuffle_index,
+                                        num_new_relations))
     print_avg_results(all_results)
     end_time = time.time()
     #elapsed_time = end_time - start_time

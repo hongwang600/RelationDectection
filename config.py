@@ -10,6 +10,7 @@ CONFIG= {
     'task_memory_size': 50,
     'loss_margin': 0.5,
     'sequence_times': 5,
+    'num_new_relations': 5,
     'model_path': 'model.pt',
     'device': torch.device('cuda:0' if torch.cuda.is_available() else 'cpu'),
     'relation_file': './data/relation.2M.list',
