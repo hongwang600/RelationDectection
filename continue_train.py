@@ -184,6 +184,7 @@ if __name__ == '__main__':
     cluster_labels = cluster_data(num_clusters)
     start_time = time.time()
     all_results = []
+    result_all_test_data = []
     for i in range(sequence_times):
         shuffle_index = list(range(num_clusters))
         random_seed = int(sys.argv[1]) + 100*i
