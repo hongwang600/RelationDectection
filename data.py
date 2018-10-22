@@ -92,7 +92,8 @@ def build_vocabulary_embedding(relation_list, all_samples, glove_embedding,
     vocabulary = {}
     embedding = []
     index = 0
-    np.random.seed(random_seed)
+    #np.random.seed(random_seed)
+    np.random.seed(100)
     for relation in relation_list:
         for word in relation:
             if word not in vocabulary:
