@@ -81,6 +81,7 @@ def run_sequence(training_data, testing_data, valid_data, all_relations,
     all_seen_samples = []
     sequence_results = []
     #np.set_printoptions(precision=3)
+    result_whole_test = []
     for i in range(num_clusters):
         seen_relations += [data[0] for data in splited_training_data[i] if
                           data[0] not in seen_relations]
@@ -105,7 +106,11 @@ def run_sequence(training_data, testing_data, valid_data, all_relations,
         print_list(results)
         sequence_results.append(np.array(results))
         all_seen_samples += current_train_data
-    return sequence_results
+        result_whole_test.append(evaluate_model(current_model,
+                                                testing_data, batch_size,
+                                                all_relations, device))
+    print('test set size:', [len(test_set) for test_set in current_test_data])
+    return sequence_results, result_whole_test
 
 def print_avg_results(all_results):
     avg_result = []
@@ -125,6 +130,7 @@ if __name__ == '__main__':
     all_results = []
     result_all_test_data = []
     for i in range(sequence_times):
+        shuffle_index = list(range(num_clusters))
         random_seed = int(sys.argv[1]) + 100*i
         random.seed(random_seed)
         random.shuffle(shuffle_index)
