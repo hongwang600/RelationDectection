@@ -70,6 +70,7 @@ def run_sequence(training_data, testing_data, valid_data, all_relations,
     seen_relations = []
     current_model = None
     sequence_results = []
+    all_seen_data = []
     #np.set_printoptions(precision=3)
     for i in range(num_clusters):
         seen_relations += [data[0] for data in splited_training_data[i] if
@@ -82,7 +83,9 @@ def run_sequence(training_data, testing_data, valid_data, all_relations,
         for j in range(i+1):
             current_test_data.append(
                 remove_unseen_relation(splited_test_data[j], seen_relations))
-        current_model = train(current_train_data, current_valid_data,
+        current_model = None
+        all_seen_data += current_train_data
+        current_model = train(all_seen_data, current_valid_data,
                               vocabulary, embedding_dim, hidden_dim,
                               device, batch_size, lr, model_path,
                               embedding, all_relations, current_model, epoch,
