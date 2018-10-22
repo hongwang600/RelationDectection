@@ -74,16 +74,17 @@ def select_samples(model, samples, task_memory_size, all_relations,
     sample_in_cluster = [0 for i in range(num_clusters)]
     selected_samples = []
     total_num_samples = 0
+    max_num_each_cluster = task_memory_size//num_clusters
     for this_sample in samples:
         cluster_label = cluster_index[this_sample[0]]
-        if sample_in_cluster[cluster_label] < 1:
+        if sample_in_cluster[cluster_label] < max_num_each_cluster:
             selected_samples.append(this_sample)
             sample_in_cluster[cluster_label] += 1
             total_num_samples += 1
-        if total_num_samples == num_clusters:
+        if total_num_samples == task_memory_size:
             break
-    selected_samples += random.sample(samples, min(task_memory_size-num_clusters,
-                                                 len(samples)))
+    #selected_samples += random.sample(samples, min(task_memory_size-num_clusters,
+     #                                            len(samples)))
     return selected_samples
 
 def run_sequence(training_data, testing_data, valid_data, all_relations,
