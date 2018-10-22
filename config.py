@@ -11,7 +11,7 @@ CONFIG= {
     'loss_margin': 0.5,
     'sequence_times': 5,
     'model_path': 'model.pt',
-    'device': torch.device('cuda:0' if torch.cuda.is_available() else 'cpu'),
+    'device': torch.device('cuda:2' if torch.cuda.is_available() else 'cpu'),
     'relation_file': './data/relation.2M.list',
     'training_file': './data/train.replace_ne.withpool',
     'test_file': './data/test.replace_ne.withpool',
