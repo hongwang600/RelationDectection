@@ -120,19 +120,23 @@ if __name__ == '__main__':
     training_data, testing_data, valid_data, all_relations, vocabulary, \
         embedding=gen_data()
     cluster_labels = cluster_data(num_clusters)
-    shuffle_index = [i for i in range(num_clusters)]
     random.seed(random_seed)
     start_time = time.time()
     all_results = []
+    result_all_test_data = []
     for i in range(sequence_times):
         random_seed = int(sys.argv[1]) + 100*i
         random.seed(random_seed)
-        #random.seed(random_seed+100*i)
         random.shuffle(shuffle_index)
-        all_results.append(run_sequence(training_data, testing_data,
-                                        valid_data, all_relations,
-                                        vocabulary, embedding, cluster_labels,
-                                        num_clusters, shuffle_index))
+        sequence_results, result_whole_test = run_sequence(
+            training_data, testing_data, valid_data, all_relations,
+            vocabulary, embedding, cluster_labels, num_clusters, shuffle_index)
+        all_results.append(sequence_results)
+        result_all_test_data.append(result_whole_test)
+    avg_result_all_test = np.average(result_all_test_data, 0)
+    for result_whole_test in result_all_test_data:
+        print_list(result_whole_test)
+    print_list(avg_result_all_test)
     print_avg_results(all_results)
     end_time = time.time()
     #elapsed_time = end_time - start_time
