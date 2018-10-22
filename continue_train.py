@@ -182,10 +182,10 @@ if __name__ == '__main__':
     training_data, testing_data, valid_data, all_relations, vocabulary, \
         embedding=gen_data()
     cluster_labels = cluster_data(num_clusters)
-    shuffle_index = [i for i in range(num_clusters)]
     start_time = time.time()
     all_results = []
     for i in range(sequence_times):
+        shuffle_index = list(range(num_clusters))
         random_seed = int(sys.argv[1]) + 100*i
         random.seed(random_seed)
         random.shuffle(shuffle_index)
