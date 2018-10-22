@@ -94,11 +94,14 @@ def train(training_data, valid_data, vocabulary, embedding_dim, hidden_dim,
                                    p_lambda).to('cpu')
             loss.backward()
             optimizer.step()
+            '''
         acc=evaluate_model(model, valid_data, batch_size, all_relations, device)
         if acc > best_acc:
             torch.save(model, model_path)
     best_model = torch.load(model_path)
     return best_model
+    '''
+    return model
 
 if __name__ == '__main__':
     training_data, testing_data, valid_data, all_relations, vocabulary, \
