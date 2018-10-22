@@ -24,7 +24,7 @@ num_clusters = conf['num_clusters']
 lr = conf['learning_rate']
 model_path = conf['model_path']
 epoch = conf['epoch']
-random_seed = conf['rand_seed']
+random_seed = conf['random_seed']
 loss_margin = conf['loss_margin']
 sequence_times = conf['sequence_times']
 
@@ -173,7 +173,7 @@ def print_avg_results(all_results):
     return avg_result
 
 if __name__ == '__main__':
-    rand_seed = int(sys.argv[1])
+    random_seed = int(sys.argv[1])
     training_data, testing_data, valid_data, all_relations, vocabulary, \
         embedding=gen_data()
     cluster_labels = cluster_data(num_clusters)

@@ -7,7 +7,7 @@ CONFIG= {
     'num_clusters': 20,
     'epoch': 3,
     'lambda': 1,
-    'rand_seed': 100,
+    'random_seed': 100,
     'loss_margin': 0.5,
     'sequence_times': 5,
     'model_path': 'model.pt',

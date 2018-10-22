@@ -9,7 +9,7 @@ valid_file = conf['valid_file']
 #glove_file = "./data/glove.6B.300d.txt"
 glove_file = conf['glove_file']
 embedding_size = conf['embedding_dim']
-rand_seed = conf['rand_seed']
+random_seed = conf['random_seed']
 
 # remove return symbol
 def remove_return_sym(str):
@@ -92,7 +92,7 @@ def build_vocabulary_embedding(relation_list, all_samples, glove_embedding,
     vocabulary = {}
     embedding = []
     index = 0
-    np.random.seed(rand_seed)
+    np.random.seed(random_seed)
     for relation in relation_list:
         for word in relation:
             if word not in vocabulary:
