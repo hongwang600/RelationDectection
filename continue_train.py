@@ -79,6 +79,7 @@ def run_sequence(training_data, testing_data, valid_data, all_relations,
                           data[0] not in seen_relations]
         current_train_data = remove_unseen_relation(splited_training_data[i],
                                                     seen_relations)
+        current_train_data = current_train_data[-task_memory_size:]
         current_valid_data = remove_unseen_relation(splited_valid_data[i],
                                                     seen_relations)
         current_test_data = []
