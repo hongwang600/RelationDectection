@@ -36,6 +36,7 @@ def train(training_data, valid_data, vocabulary, embedding_dim, hidden_dim,
           device, batch_size, lr, model_path, embedding, all_relations,
           model=None, epoch=100, grad_means=[], grad_fishers=[], loss_margin=2.0):
     if model is None:
+        torch.manual_seed(100)
         model = SimilarityModel(embedding_dim, hidden_dim, len(vocabulary),
                                 np.array(embedding), 1, device)
     loss_function = nn.MarginRankingLoss(loss_margin)
