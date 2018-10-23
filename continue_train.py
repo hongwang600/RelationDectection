@@ -121,7 +121,7 @@ if __name__ == '__main__':
     all_results = []
     result_all_test_data = []
     for i in range(sequence_times):
-        shuffle_index = list(range(num_clusters)]
+        shuffle_index = list(range(num_clusters))
         random_seed = int(sys.argv[1]) + 100*i
         random.seed(random_seed)
         random.shuffle(shuffle_index)
