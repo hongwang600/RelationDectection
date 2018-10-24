@@ -141,14 +141,14 @@ def train(training_data, valid_data, vocabulary, embedding_dim, hidden_dim,
     model = model.to(device)
     optimizer = optim.Adam(model.parameters(), lr=lr)
     best_acc = 0
+    memory_data_grads = get_grads_memory_data(model, memory_data,
+                                              loss_function,
+                                              all_relations,
+                                              device)
     for epoch_i in range(epoch):
         #print('epoch', epoch_i)
         #training_data = training_data[0:100]
         for i in range((len(training_data)-1)//batch_size+1):
-            memory_data_grads = get_grads_memory_data(model, memory_data,
-                                                      loss_function,
-                                                      all_relations,
-                                                      device)
             #print(memory_data_grads)
             samples = training_data[i*batch_size:(i+1)*batch_size]
             feed_samples(model, samples, loss_function, all_relations, device)
