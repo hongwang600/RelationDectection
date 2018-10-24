@@ -109,6 +109,7 @@ def run_sequence(training_data, testing_data, valid_data, all_relations,
                               embedding, all_relations, current_model, epoch,
                               new_memory_data, loss_margin)
         memory_data.append(current_train_data[-task_memory_size:])
+        random.shuffle(memory_data)
         '''
         if len(new_memory_data)>0:
             print(memory_data[0][0])
