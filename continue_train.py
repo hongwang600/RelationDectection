@@ -86,6 +86,7 @@ def run_sequence(training_data, testing_data, valid_data, all_relations,
                 remove_unseen_relation(splited_test_data[j], seen_relations))
         #current_model = None
         all_seen_data += current_train_data
+        random.shuffle(all_seen_data)
         current_model = train(all_seen_data, current_valid_data,
                               vocabulary, embedding_dim, hidden_dim,
                               device, batch_size, lr, model_path,
