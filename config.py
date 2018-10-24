@@ -5,7 +5,7 @@ CONFIG= {
     'hidden_dim': 200,
     'batch_size': 50,
     'num_clusters': 20,
-    'epoch': 30,
+    'epoch': 50,
     'random_seed': 100,
     'task_memory_size': 50,
     'loss_margin': 0.5,
