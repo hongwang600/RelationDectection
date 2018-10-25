@@ -20,7 +20,8 @@ device = conf['device']
 lr = conf['learning_rate']
 loss_margin = conf['loss_margin']
 
-def feed_samples(model, samples, loss_function, all_relations, device):
+def feed_samples(model, samples, loss_function, all_relations, device,
+                 grad_means=[], grad_fishers=[]):
     questions, relations, relation_set_lengths = process_samples(
         samples, all_relations, device)
     #print('got data')
@@ -57,6 +58,15 @@ def feed_samples(model, samples, loss_function, all_relations, device):
     loss = loss_function(pos_scores, neg_scores,
                          torch.ones(sum(relation_set_lengths)-
                                     len(relation_set_lengths)))
+    loss = loss.sum()
+    #loss.to(device)
+    #print(loss)
+    for i in range(len(grad_means)):
+        grad_mean = grad_means[i]
+        grad_fisher = grad_fishers[i]
+        #print(param_loss(model, grad_mean, grad_fisher, p_lambda))
+        loss += param_loss(model, grad_mean, grad_fisher,
+                           p_lambda).to('cpu')
     loss.backward()
 
 # copied from facebook open scource. (https://github.com/facebookresearch/
@@ -132,7 +142,8 @@ def check_constrain(memory_grads, sample_grad):
 
 def train(training_data, valid_data, vocabulary, embedding_dim, hidden_dim,
           device, batch_size, lr, model_path, embedding, all_relations,
-          model=None, epoch=100, memory_data=[], loss_margin=2.0):
+          model=None, epoch=100, memory_data=[], loss_margin=2.0,
+          grad_means=[], grad_fishers=[]):
     if model is None:
         torch.manual_seed(100)
         model = SimilarityModel(embedding_dim, hidden_dim, len(vocabulary),
@@ -151,7 +162,8 @@ def train(training_data, valid_data, vocabulary, embedding_dim, hidden_dim,
                                                       device)
             #print(memory_data_grads)
             samples = training_data[i*batch_size:(i+1)*batch_size]
-            feed_samples(model, samples, loss_function, all_relations, device)
+            feed_samples(model, samples, loss_function, all_relations, device,
+                         grad_means, grad_fishers)
             sample_grad = copy_grad_data(model)
             if len(memory_data_grads) > 0:
                 if not check_constrain(memory_data_grads, sample_grad):
