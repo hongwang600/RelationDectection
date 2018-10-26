@@ -19,6 +19,19 @@ model_path = conf['model_path']
 device = conf['device']
 lr = conf['learning_rate']
 loss_margin = conf['loss_margin']
+p_lambda = conf['lambda']
+
+def param_loss(model, means, fishers, p_lambda):
+    grad_params = get_grad_params(model)
+    loss = torch.tensor(0.0).to(device)
+    for i, param in enumerate(grad_params):
+        #print(fishers[i])
+        #print(param.data)
+        #print(means[i])
+        #print(p_lambda*fishers[i]*(param.data-means[i])**2)
+        loss += (p_lambda*fishers[i]*(param-means[i])**2).sum()
+    #print('loss', loss)
+    return loss
 
 def feed_samples(model, samples, loss_function, all_relations, device,
                  grad_means=[], grad_fishers=[]):
@@ -150,16 +163,16 @@ def train(training_data, valid_data, vocabulary, embedding_dim, hidden_dim,
                                 np.array(embedding), 1, device)
     loss_function = nn.MarginRankingLoss(loss_margin)
     model = model.to(device)
+    memory_data_grads = get_grads_memory_data(model, memory_data,
+                                              loss_function,
+                                              all_relations,
+                                              device)
     optimizer = optim.Adam(model.parameters(), lr=lr)
     best_acc = 0
     for epoch_i in range(epoch):
         #print('epoch', epoch_i)
         #training_data = training_data[0:100]
         for i in range((len(training_data)-1)//batch_size+1):
-            memory_data_grads = get_grads_memory_data(model, memory_data,
-                                                      loss_function,
-                                                      all_relations,
-                                                      device)
             #print(memory_data_grads)
             samples = training_data[i*batch_size:(i+1)*batch_size]
             feed_samples(model, samples, loss_function, all_relations, device,
