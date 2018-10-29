@@ -6,7 +6,7 @@ CONFIG= {
     'batch_size': 50,
     'num_clusters': 20,
     'epoch': 3,
-    'lambda': 2,
+    'lambda': 1000,
     'rand_seed': 100,
     'data_per_task': 50,
     'loss_margin': 0.5,
