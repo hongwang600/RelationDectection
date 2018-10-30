@@ -71,6 +71,7 @@ def project2cone2(gradient, memories, margin=0.5):
         output: x, p-vector
     """
     memories_np = memories.cpu().double().numpy()
+    #memories_np = memories_np[~np.all(memories_np < 10e-7, axis=1)]
     memories_np = memories_np[~np.all(memories_np == 0, axis=1)]
     gradient_np = gradient.cpu().contiguous().view(-1).double().numpy()
     #print(memories_np.shape)
