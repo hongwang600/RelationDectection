@@ -94,6 +94,8 @@ def random_walk(rel_ques_cand, num_cands, rel):
             cand_set.append(cur_rel)
             cur_num_cands += 1
     return cand_set
+    #all_cands = list(rel_ques_cand.keys())
+    #return random.sample(all_cands, num_cands)
 
 def sample_relations(relations_frequences, rel_ques_cand, num_samples):
     relations = list(relations_frequences.keys())
