@@ -27,6 +27,7 @@ random_seed = conf['random_seed']
 task_memory_size = conf['task_memory_size']
 loss_margin = conf['loss_margin']
 sequence_times = conf['sequence_times']
+num_cands = conf['num_cands']
 
 def split_data(data_set, cluster_labels, num_clusters, shuffle_index):
     splited_data = [[] for i in range(num_clusters)]
@@ -52,6 +53,69 @@ def print_list(result):
         sys.stdout.write('%.3f, ' %num)
     print('')
 
+
+def enlarge_rel_graph(train_data, relations_frequences, rel_ques_cand):
+    #new_relation_frequences = {}
+    for sample in train_data:
+        pos_index = sample[0]
+        neg_cands = sample[1]
+        question = sample[2]
+        if pos_index not in relations_frequences:
+            relations_frequences[pos_index] = 1
+        else:
+            relations_frequences[pos_index] += 1
+            relations_frequences[pos_index] = \
+                max(50, relations_frequences[pos_index])
+        if pos_index not in rel_ques_cand:
+            rel_ques_cand[pos_index] = [neg_cands, [question]]
+        else:
+            if len(rel_ques_cand[pos_index][1]) < 10:
+                rel_ques_cand[pos_index][1].append(question)
+            for cand_rel in neg_cands:
+                if cand_rel not in rel_ques_cand[pos_index][0]:
+                    rel_ques_cand[pos_index][0].append(cand_rel)
+        all_rels = [pos_index] + neg_cands
+        for cand_rel in neg_cands:
+            if cand_rel in rel_ques_cand:
+                rel_ques_cand[cand_rel][0] += [rel for rel in all_rels if rel
+                                               not in rel_ques_cand[cand_rel][0]
+                                               and rel != cand_rel]
+            else:
+                rel_ques_cand[cand_rel] = [[rel for rel in all_rels if
+                                            rel!=cand_rel], []]
+
+def random_walk(rel_ques_cand, num_cands, rel):
+    cand_set = []
+    cur_rel = rel
+    cur_num_cands = 0
+    while cur_num_cands < num_cands:
+        cur_rel = random.sample(rel_ques_cand[cur_rel][0], 1)[0]
+        if cur_rel != rel:
+            cand_set.append(cur_rel)
+            cur_num_cands += 1
+    return cand_set
+
+def sample_relations(relations_frequences, rel_ques_cand, num_samples):
+    relations = list(relations_frequences.keys())
+    relation_fre = np.array(list(relations_frequences.values()))
+    relation_pro = relation_fre/float(sum(relation_fre))
+    selected_rels = np.random.choice(relations, num_samples, True, relation_pro)
+    ret_relations = []
+    for rel in selected_rels:
+        #print(rel_ques_cand[rel])
+        question = random.sample(rel_ques_cand[rel][1],1)[0]
+        neg_cands = random_walk(rel_ques_cand, num_cands, rel)
+        ret_relations.append([rel, neg_cands, question])
+    #print(ret_relations)
+    return ret_relations
+
+def sample_relations_task(relations_frequences, rel_ques_cand, num_samples):
+    ret_samples = []
+    for relation_fre in relations_frequences:
+        task_sample = sample_relations(relation_fre, rel_ques_cand, num_samples)
+        ret_samples.append(task_sample)
+    return ret_samples
+
 def run_sequence(training_data, testing_data, valid_data, all_relations,
                  vocabulary,embedding, cluster_labels, num_clusters,
                  shuffle_index):
@@ -74,6 +138,9 @@ def run_sequence(training_data, testing_data, valid_data, all_relations,
     sequence_results = []
     #np.set_printoptions(precision=3)
     result_whole_test = []
+    relations_frequences_all = {}
+    relations_frequences_task = []
+    rel_ques_cand = {}
     for i in range(num_clusters):
         seen_relations += [data[0] for data in splited_training_data[i] if
                           data[0] not in seen_relations]
@@ -90,7 +157,20 @@ def run_sequence(training_data, testing_data, valid_data, all_relations,
                               device, batch_size, lr, model_path,
                               embedding, all_relations, current_model, epoch,
                               memory_data, loss_margin)
-        memory_data.append(current_train_data[-task_memory_size:])
+        enlarge_rel_graph(current_train_data, relations_frequences_all,
+                          rel_ques_cand)
+        memory_data = [sample_relations(relations_frequences_all, rel_ques_cand,
+                                        task_memory_size*(i+1))]
+        '''
+        new_rel_frequences = {}
+        enlarge_rel_graph(current_train_data, new_rel_frequences,
+                          rel_ques_cand)
+        relations_frequences_task.append(new_rel_frequences)
+        memory_data = sample_relations_task(relations_frequences_task,
+                                            rel_ques_cand,
+                                            task_memory_size)
+                                            '''
+        #memory_data.append(current_train_data[-task_memory_size:])
         results = [evaluate_model(current_model, test_data, batch_size,
                                   all_relations, device)
                    for test_data in current_test_data]
@@ -100,6 +180,7 @@ def run_sequence(training_data, testing_data, valid_data, all_relations,
                                                 testing_data, batch_size,
                                                 all_relations, device))
     print('test set size:', [len(test_set) for test_set in current_test_data])
+    print('whole_test:', result_whole_test)
     return sequence_results, result_whole_test
 
 def print_avg_results(all_results):
