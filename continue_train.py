@@ -184,7 +184,7 @@ def run_sequence(training_data, testing_data, valid_data, all_relations,
                                                 testing_data, batch_size,
                                                 all_relations, device))
     print('test set size:', [len(test_set) for test_set in current_test_data])
-    print('whole_test:', result_whole_test)
+    #print('whole_test:', result_whole_test)
     return sequence_results, result_whole_test
 
 def print_avg_results(all_results):
@@ -195,10 +195,17 @@ def print_avg_results(all_results):
         print_list(line_result)
     return avg_result
 
+def print_avg_cand(sample_list):
+    cand_lengths = []
+    for sample in sample_list:
+        cand_lengths.append(len(sample[1]))
+    print('avg cand size:', np.average(cand_lengths))
+
 if __name__ == '__main__':
     random_seed = int(sys.argv[1])
     training_data, testing_data, valid_data, all_relations, vocabulary, \
         embedding=gen_data()
+    #print_avg_cand(training_data)
     cluster_labels = cluster_data(num_clusters)
     random.seed(random_seed)
     start_time = time.time()
