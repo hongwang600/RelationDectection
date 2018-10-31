@@ -128,4 +128,5 @@ class SimilarityModel(nn.Module):
         #print('sentence_embedding', sentence_embedding)
         #print('relation_embedding', relation_embedding)
         cos = nn.CosineSimilarity(dim=1)
-        return cos(question_embedding, relation_embedding)
+        return cos(question_embedding, relation_embedding), question_embedding,\
+            relation_embedding

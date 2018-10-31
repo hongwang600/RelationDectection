@@ -40,9 +40,10 @@ def feed_samples(model, samples, loss_function, all_relations, device):
 
     model.zero_grad()
     model.init_hidden(device, sum(relation_set_lengths))
-    all_scores = model(pad_questions, pad_relations, device,
-                       reverse_question_indexs, reverse_relation_indexs,
-                       question_lengths, relation_lengths)
+    all_scores, relation_embedding, question_embedding =\
+        model(pad_questions, pad_relations, device,
+              reverse_question_indexs, reverse_relation_indexs,
+              question_lengths, relation_lengths)
     all_scores = all_scores.to('cpu')
     pos_scores = []
     neg_scores = []
@@ -61,7 +62,7 @@ def feed_samples(model, samples, loss_function, all_relations, device):
 
 # copied from facebook open scource. (https://github.com/facebookresearch/
 # GradientEpisodicMemory/blob/master/model/gem.py)
-def project2cone2(gradient, memories, margin=0.5):
+def project2cone2(gradient, memories, margin=0.5, eps=1e-3):
     """
         Solves the GEM dual QP described in the paper given a proposed
         gradient "gradient", and a memory of task gradients "memories".
@@ -77,7 +78,7 @@ def project2cone2(gradient, memories, margin=0.5):
     #print(gradient.shape)
     t = memories_np.shape[0]
     P = np.dot(memories_np, memories_np.transpose())
-    P = 0.5 * (P + P.transpose())
+    P = 0.5 * (P + P.transpose()) + np.eye(t) * eps
     q = np.dot(memories_np, gradient_np) * -1
     G = np.eye(t)
     h = np.zeros(t) + margin
