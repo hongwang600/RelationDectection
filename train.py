@@ -58,6 +58,7 @@ def feed_samples(model, samples, loss_function, all_relations, device):
                          torch.ones(sum(relation_set_lengths)-
                                     len(relation_set_lengths)))
     loss.backward()
+    return all_scores, loss
 
 # copied from facebook open scource. (https://github.com/facebookresearch/
 # GradientEpisodicMemory/blob/master/model/gem.py)
@@ -112,8 +113,11 @@ def get_grads_memory_data(model, memory_data, loss_function,
                           all_relations, device):
     memory_data_grads = []
     for data in memory_data:
-        feed_samples(model, data, loss_function, all_relations, device)
+        scores, loss = feed_samples(model, data,
+                                    loss_function, all_relations, device)
         memory_data_grads.append(copy_grad_data(model))
+        del scores
+        del loss
         #print(memory_data_grads[-1][:10])
     if len(memory_data_grads) > 1:
         return torch.stack(memory_data_grads)
@@ -151,7 +155,8 @@ def train(training_data, valid_data, vocabulary, embedding_dim, hidden_dim,
                                                       device)
             #print(memory_data_grads)
             samples = training_data[i*batch_size:(i+1)*batch_size]
-            feed_samples(model, samples, loss_function, all_relations, device)
+            scores, loss = feed_samples(model, samples, loss_function,
+                                        all_relations, device)
             sample_grad = copy_grad_data(model)
             if len(memory_data_grads) > 0:
                 if not check_constrain(memory_data_grads, sample_grad):
@@ -160,6 +165,8 @@ def train(training_data, valid_data, vocabulary, embedding_dim, hidden_dim,
                     grad_dims = [param.data.numel() for param in grad_params]
                     overwrite_grad(grad_params, sample_grad, grad_dims)
             optimizer.step()
+            del scores
+            del loss
             '''
         acc=evaluate_model(model, valid_data, batch_size, all_relations, device)
         if acc > best_acc:

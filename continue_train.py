@@ -159,11 +159,13 @@ def run_sequence(training_data, testing_data, valid_data, all_relations,
                               device, batch_size, lr, model_path,
                               embedding, all_relations, current_model, epoch,
                               memory_data, loss_margin)
+        '''
         enlarge_rel_graph(current_train_data, relations_frequences_all,
                           rel_ques_cand)
         memory_data = [sample_relations(relations_frequences_all, rel_ques_cand,
                                         task_memory_size*(i+1))]
-        '''
+                                        '''
+        #'''
         new_rel_frequences = {}
         enlarge_rel_graph(current_train_data, new_rel_frequences,
                           rel_ques_cand)
@@ -171,7 +173,7 @@ def run_sequence(training_data, testing_data, valid_data, all_relations,
         memory_data = sample_relations_task(relations_frequences_task,
                                             rel_ques_cand,
                                             task_memory_size)
-                                            '''
+        #                                    '''
         #memory_data.append(current_train_data[-task_memory_size:])
         results = [evaluate_model(current_model, test_data, batch_size,
                                   all_relations, device)
