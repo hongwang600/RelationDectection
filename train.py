@@ -20,7 +20,21 @@ device = conf['device']
 lr = conf['learning_rate']
 loss_margin = conf['loss_margin']
 
-def feed_samples(model, samples, loss_function, all_relations, device):
+def compute_embed_loss(question_embedding, relation_embedding, saved_que_embeds,
+                       saved_rel_embeds):
+    '''
+    cos = nn.CosineSimilarity(dim=1)
+    return (sum(1-cos(question_embedding, saved_que_embeds)) +
+            sum(1-cos(relation_embedding, saved_rel_embeds))) /\
+        (2*len(question_embedding))
+        '''
+    pdist = nn.PairwiseDistance(p=2)
+    return (sum(pdist(question_embedding, saved_que_embeds)) +
+            sum(pdist(relation_embedding, saved_rel_embeds))) /\
+        (2*len(question_embedding))
+
+def feed_samples(model, samples, loss_function, all_relations, device,
+                 saved_que_embeds=None, saved_rel_embeds=None):
     questions, relations, relation_set_lengths = process_samples(
         samples, all_relations, device)
     #print('got data')
@@ -40,7 +54,7 @@ def feed_samples(model, samples, loss_function, all_relations, device):
 
     model.zero_grad()
     model.init_hidden(device, sum(relation_set_lengths))
-    all_scores, relation_embedding, question_embedding =\
+    all_scores, question_embedding, relation_embedding =\
         model(pad_questions, pad_relations, device,
               reverse_question_indexs, reverse_relation_indexs,
               question_lengths, relation_lengths)
@@ -58,7 +72,21 @@ def feed_samples(model, samples, loss_function, all_relations, device):
     loss = loss_function(pos_scores, neg_scores,
                          torch.ones(sum(relation_set_lengths)-
                                     len(relation_set_lengths)))
-    loss.backward()
+    if saved_que_embeds is not None:
+        embed_loss = compute_embed_loss(question_embedding,
+                                        relation_embedding,
+                                        saved_que_embeds,
+                                        saved_rel_embeds)
+        embed_loss = embed_loss.to('cpu')
+       # print('embed loss', embed_loss)
+        #print('loss', loss)
+        loss += 0.01 * embed_loss
+        #loss = embed_loss
+    loss.backward(retain_graph=True)
+    ret_que_embeds, ret_rel_embed = question_embedding.clone(),\
+        relation_embedding.clone()
+    del loss
+    return ret_que_embeds, ret_rel_embed
 
 # copied from facebook open scource. (https://github.com/facebookresearch/
 # GradientEpisodicMemory/blob/master/model/gem.py)
@@ -74,6 +102,8 @@ def project2cone2(gradient, memories, margin=0.5, eps=1e-3):
     memories_np = memories.cpu().double().numpy()
     memories_np = memories_np[~np.all(memories_np == 0, axis=1)]
     gradient_np = gradient.cpu().contiguous().view(-1).double().numpy()
+    avg_gradient = np.average(np.concatenate((memories_np,
+                                              gradient_np.reshape(1,-1))), 0)
     #print(memories_np.shape)
     #print(gradient.shape)
     t = memories_np.shape[0]
@@ -88,6 +118,9 @@ def project2cone2(gradient, memories, margin=0.5, eps=1e-3):
     #print(v)
     x = np.dot(v, memories_np) + gradient_np
     gradient.copy_(torch.Tensor(x).view(-1))
+    #gradient.copy_(torch.Tensor(avg_gradient).view(-1))
+    #gradient.copy_(torch.Tensor(np.average(memories_np, 0)).view(-1))
+    #print(gradient)
 
 # copied from facebook open scource. (https://github.com/facebookresearch/
 # GradientEpisodicMemory/blob/master/model/gem.py)
@@ -110,10 +143,12 @@ def overwrite_grad(pp, newgrad, grad_dims):
         cnt += 1
 
 def get_grads_memory_data(model, memory_data, loss_function,
-                          all_relations, device):
+                          all_relations, device, saved_que_embeds,
+                          saved_rel_embeds):
     memory_data_grads = []
-    for data in memory_data:
-        feed_samples(model, data, loss_function, all_relations, device)
+    for i, data in enumerate(memory_data):
+        feed_samples(model, data, loss_function, all_relations, device,
+                     saved_que_embeds[i], saved_rel_embeds[i])
         memory_data_grads.append(copy_grad_data(model))
         #print(memory_data_grads[-1][:10])
     if len(memory_data_grads) > 1:
@@ -133,7 +168,8 @@ def check_constrain(memory_grads, sample_grad):
 
 def train(training_data, valid_data, vocabulary, embedding_dim, hidden_dim,
           device, batch_size, lr, model_path, embedding, all_relations,
-          model=None, epoch=100, memory_data=[], loss_margin=2.0):
+          model=None, epoch=100, memory_data=[], loss_margin=2.0,
+          saved_que_embeds=None, saved_rel_embeds=None):
     if model is None:
         torch.manual_seed(100)
         model = SimilarityModel(embedding_dim, hidden_dim, len(vocabulary),
@@ -146,27 +182,30 @@ def train(training_data, valid_data, vocabulary, embedding_dim, hidden_dim,
         #print('epoch', epoch_i)
         #training_data = training_data[0:100]
         for i in range((len(training_data)-1)//batch_size+1):
-            '''
             memory_data_grads = get_grads_memory_data(model, memory_data,
                                                       loss_function,
                                                       all_relations,
-                                                      device)
+                                                      device,
+                                                      saved_que_embeds,
+                                                      saved_rel_embeds)
             #print(memory_data_grads)
             samples = training_data[i*batch_size:(i+1)*batch_size]
             feed_samples(model, samples, loss_function, all_relations, device)
             sample_grad = copy_grad_data(model)
             if len(memory_data_grads) > 0:
                 if not check_constrain(memory_data_grads, sample_grad):
+                #if True:
                     project2cone2(sample_grad, memory_data_grads)
                     grad_params = get_grad_params(model)
                     grad_dims = [param.data.numel() for param in grad_params]
                     overwrite_grad(grad_params, sample_grad, grad_dims)
-                    '''
+            '''
             samples = training_data[i*batch_size:(i+1)*batch_size]
             all_samples = samples
             for data in memory_data:
                 all_samples += data
             feed_samples(model, all_samples, loss_function, all_relations, device)
+            '''
             optimizer.step()
         '''
         acc=evaluate_model(model, valid_data, batch_size, all_relations, device)

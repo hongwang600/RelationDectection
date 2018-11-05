@@ -32,7 +32,7 @@ def evaluate_model(model, testing_data, batch_size, all_relations, device):
         #print(ranked_questions)
         pad_questions = torch.nn.utils.rnn.pad_sequence(ranked_questions)
         pad_relations = torch.nn.utils.rnn.pad_sequence(ranked_relations)
-        all_score, srelation_embedding, question_embedding  =\
+        all_scores, question_embedding, relation_embedding  =\
             model(pad_questions, pad_relations, device,
                   reverse_question_indexs, reverse_relation_indexs,
                   question_lengths, relation_lengths)

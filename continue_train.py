@@ -13,7 +13,7 @@ from utils import process_testing_samples, process_samples, ranking_sequence
 from evaluate import evaluate_model
 from data_partition import cluster_data
 from config import CONFIG as conf
-from train import train
+from train import train, feed_samples
 
 embedding_dim = conf['embedding_dim']
 hidden_dim = conf['hidden_dim']
@@ -52,8 +52,13 @@ def print_list(result):
         sys.stdout.write('%.3f, ' %num)
     print('')
 
-def store_embeds(model, sample_list):
-
+def save_que_rel_embeds(model, sample_list, saved_que_embeds, saved_rel_embeds,
+                        all_relations, device, loss_margin):
+    loss_function = nn.MarginRankingLoss(loss_margin)
+    que_embed, rel_embed = feed_samples(model, sample_list, loss_function,
+                                       all_relations, device)
+    saved_que_embeds.append(que_embed)
+    saved_rel_embeds.append(rel_embed)
 
 def run_sequence(training_data, testing_data, valid_data, all_relations,
                  vocabulary,embedding, cluster_labels, num_clusters,
@@ -74,6 +79,8 @@ def run_sequence(training_data, testing_data, valid_data, all_relations,
     seen_relations = []
     current_model = None
     memory_data = []
+    saved_que_embeds=[]
+    saved_rel_embeds=[]
     sequence_results = []
     #np.set_printoptions(precision=3)
     result_whole_test = []
@@ -92,8 +99,16 @@ def run_sequence(training_data, testing_data, valid_data, all_relations,
                               vocabulary, embedding_dim, hidden_dim,
                               device, batch_size, lr, model_path,
                               embedding, all_relations, current_model, epoch,
-                              memory_data, loss_margin)
+                              memory_data, loss_margin, saved_que_embeds,
+                              saved_rel_embeds)
         memory_data.append(current_train_data[-task_memory_size:])
+        save_que_rel_embeds(current_model,
+                            current_train_data[-task_memory_size:],
+                            saved_que_embeds,
+                            saved_rel_embeds,
+                            all_relations,
+                            device,
+                            loss_margin)
         results = [evaluate_model(current_model, test_data, batch_size,
                                   all_relations, device)
                    for test_data in current_test_data]
@@ -103,6 +118,7 @@ def run_sequence(training_data, testing_data, valid_data, all_relations,
                                                 testing_data, batch_size,
                                                 all_relations, device))
     print('test set size:', [len(test_set) for test_set in current_test_data])
+    print('whole test:', result_whole_test)
     return sequence_results, result_whole_test
 
 def print_avg_results(all_results):
