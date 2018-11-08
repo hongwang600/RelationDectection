@@ -28,6 +28,7 @@ task_memory_size = conf['task_memory_size']
 loss_margin = conf['loss_margin']
 sequence_times = conf['sequence_times']
 num_cands = conf['num_cands']
+num_steps = conf['num_steps']
 
 def split_data(data_set, cluster_labels, num_clusters, shuffle_index):
     splited_data = [[] for i in range(num_clusters)]
@@ -53,12 +54,22 @@ def print_list(result):
         sys.stdout.write('%.3f, ' %num)
     print('')
 
+def add_co_occur_edges(rel_ques_cand, all_rels):
+    for this_rel in all_rels:
+        if this_rel not in rel_ques_cand:
+            rel_ques_cand[this_rel] = [{}, []]
+        for cand_rel in all_rels:
+            if cand_rel != this_rel:
+                if cand_rel not in rel_ques_cand[this_rel][0]:
+                    rel_ques_cand[this_rel][0][cand_rel] = 1
+                else:
+                    rel_ques_cand[this_rel][0][cand_rel] += 1
 
 def enlarge_rel_graph(train_data, relations_frequences, rel_ques_cand):
     #new_relation_frequences = {}
     for sample in train_data:
         pos_index = sample[0]
-        neg_cands = sample[1]
+        neg_cands = sample[1][:]
         question = sample[2]
         if pos_index not in relations_frequences:
             relations_frequences[pos_index] = 1
@@ -66,48 +77,103 @@ def enlarge_rel_graph(train_data, relations_frequences, rel_ques_cand):
             relations_frequences[pos_index] += 1
             relations_frequences[pos_index] = \
                 max(50, relations_frequences[pos_index])
-        if pos_index not in rel_ques_cand:
-            rel_ques_cand[pos_index] = [neg_cands, [question]]
-        else:
-            if len(rel_ques_cand[pos_index][1]) < 10:
-                rel_ques_cand[pos_index][1].append(question)
-            for cand_rel in neg_cands:
-                if cand_rel not in rel_ques_cand[pos_index][0]:
-                    rel_ques_cand[pos_index][0].append(cand_rel)
         all_rels = [pos_index] + neg_cands
-        for cand_rel in neg_cands:
-            if cand_rel in rel_ques_cand:
-                rel_ques_cand[cand_rel][0] += [rel for rel in all_rels if rel
-                                               not in rel_ques_cand[cand_rel][0]
-                                               and rel != cand_rel]
-            else:
-                rel_ques_cand[cand_rel] = [[rel for rel in all_rels if
-                                            rel!=cand_rel], []]
+        add_co_occur_edges(rel_ques_cand, all_rels)
+        if len(rel_ques_cand[pos_index][1]) < 10:
+            rel_ques_cand[pos_index][1].append(question)
+
+def sample_given_pro(sample_pro_set, num_samples):
+    samples = list(sample_pro_set.keys())
+    fre = np.array(list(sample_pro_set.values()))
+    pro = fre/float(sum(fre))
+    #print(samples, pro)
+    selected_sample = np.random.choice(samples, num_samples, True, pro)
+    #print(selected_sample)
+    return selected_sample
+
+def walk_n_steps(rel_ques_cand, num_steps, rel):
+    for i in range(num_steps):
+        rel = sample_given_pro(rel_ques_cand[rel][0], 1)[0]
+    #print(rel)
+    return rel
 
 def random_walk(rel_ques_cand, num_cands, rel):
     cand_set = []
-    cur_rel = rel
+    #cur_rel = rel
     cur_num_cands = 0
+    #print(rel)
+    #print(rel_ques_cand[rel])
     while cur_num_cands < num_cands:
-        cur_rel = random.sample(rel_ques_cand[cur_rel][0], 1)[0]
-        if cur_rel != rel:
-            cand_set.append(cur_rel)
-            cur_num_cands += 1
+        end_rel = walk_n_steps(rel_ques_cand, num_steps, rel)
+        #print(end_rel)
+        if end_rel != rel:
+            cand_set.append(end_rel)
+        cur_num_cands += 1
+    #print(cand_set)
     return cand_set
-    #all_cands = list(rel_ques_cand.keys())
-    #return random.sample(all_cands, num_cands)
+    #all_cands = list(rel_ques_cand.keys())[:]
+    #return random.sample(all_cands, min(len(all_cands), num_cands))
+    '''
+    all_cands = list(rel_ques_cand.keys())[:]
+    neighbor_cand = list(rel_ques_cand[rel][0].keys())
+    all_cands = [cand for cand in all_cands if cand not in neighbor_cand]
+    return random.sample(all_cands, min(len(all_cands), num_cands))
+    '''
 
-def sample_relations(relations_frequences, rel_ques_cand, num_samples):
-    relations = list(relations_frequences.keys())
-    relation_fre = np.array(list(relations_frequences.values()))
-    relation_pro = relation_fre/float(sum(relation_fre))
-    selected_rels = np.random.choice(relations, num_samples, True, relation_pro)
+def sample_near_data(rel_ques_cand, current_train_data, num_samples):
+    current_num_samples = 0
+    current_index = 0
+    num_training_samples = len(current_train_data)
+    selected_rels = []
+    remain_samples = num_samples
+    samples = []
+    while remain_samples > 0:
+        this_sample = min(len(current_train_data), remain_samples)
+        samples += random.sample(current_train_data, this_sample)
+        remain_samples -= this_sample
+    for this_sample in samples:
+        end_rel = walk_n_steps(rel_ques_cand, num_steps, this_sample[0])
+        selected_rels.append(end_rel)
+        current_index = (current_index+1)%num_training_samples
+    return selected_rels
+
+def sample_away_data(rel_ques_cand, current_train_data, num_samples,
+                     relations_frequences):
+    current_num_samples = 0
+    current_index = 0
+    num_training_samples = len(current_train_data)
+    selected_rels = []
+    remain_samples = num_samples
+    samples = []
+    relation_list = list(relations_frequences.keys())
+    while remain_samples > 0:
+        this_sample = min(len(current_train_data), remain_samples)
+        samples += random.sample(current_train_data, this_sample)
+        remain_samples -= this_sample
+    for this_sample in samples:
+        #end_rel = walk_n_steps(rel_ques_cand, num_steps, this_sample[0])
+        end_rel = this_sample[0]
+        while end_rel == this_sample[0]:
+            end_rel = random.sample(relation_list, 1)[0]
+        selected_rels.append(end_rel)
+        current_index = (current_index+1)%num_training_samples
+    return selected_rels
+
+def sample_relations(relations_frequences, rel_ques_cand, num_samples,
+                     current_train_data):
+    #selected_rels = sample_given_pro(relations_frequences, num_samples)
+    selected_rels = sample_near_data(rel_ques_cand, current_train_data,
+                                     num_samples)
+    #selected_rels = sample_away_data(rel_ques_cand, current_train_data,
+    #                                num_samples, relations_frequences)
     ret_relations = []
     for rel in selected_rels:
         #print(rel_ques_cand[rel])
-        question = random.sample(rel_ques_cand[rel][1],1)[0]
-        neg_cands = random_walk(rel_ques_cand, num_cands, rel)
-        ret_relations.append([rel, neg_cands, question])
+        if len(rel_ques_cand[rel][1]) > 0:
+            question = random.sample(rel_ques_cand[rel][1],1)[0]
+            neg_cands = random_walk(rel_ques_cand, num_cands, rel)
+            if len(neg_cands) > 0:
+                ret_relations.append([rel, neg_cands, question])
     #print(ret_relations)
     return ret_relations
 
@@ -154,18 +220,22 @@ def run_sequence(training_data, testing_data, valid_data, all_relations,
         for j in range(i+1):
             current_test_data.append(
                 remove_unseen_relation(splited_test_data[j], seen_relations))
+        enlarge_rel_graph(current_train_data, relations_frequences_all,
+                          rel_ques_cand)
+        #'''
+        memory_data = []
+        for j in range(i):
+            memory_data.append(sample_relations(relations_frequences_all,
+                                                rel_ques_cand,
+                                                task_memory_size,
+                                                current_train_data))
+        #                                '''
         current_model = train(current_train_data, current_valid_data,
                               vocabulary, embedding_dim, hidden_dim,
                               device, batch_size, lr, model_path,
                               embedding, all_relations, current_model, epoch,
                               memory_data, loss_margin)
         '''
-        enlarge_rel_graph(current_train_data, relations_frequences_all,
-                          rel_ques_cand)
-        memory_data = [sample_relations(relations_frequences_all, rel_ques_cand,
-                                        task_memory_size*(i+1))]
-                                        '''
-        #'''
         new_rel_frequences = {}
         enlarge_rel_graph(current_train_data, new_rel_frequences,
                           rel_ques_cand)
@@ -173,7 +243,7 @@ def run_sequence(training_data, testing_data, valid_data, all_relations,
         memory_data = sample_relations_task(relations_frequences_task,
                                             rel_ques_cand,
                                             task_memory_size)
-        #                                    '''
+                                            '''
         #memory_data.append(current_train_data[-task_memory_size:])
         results = [evaluate_model(current_model, test_data, batch_size,
                                   all_relations, device)
