@@ -7,7 +7,7 @@ CONFIG= {
     'num_clusters': 20,
     'epoch': 3,
     'random_seed': 100,
-    'task_memory_size': 10,
+    'task_memory_size': 50,
     'loss_margin': 0.5,
     'sequence_times': 5,
     'num_cands': 10,
