@@ -10,7 +10,8 @@ from sklearn.cluster import KMeans
 
 from data import gen_data
 from model import SimilarityModel
-from utils import process_testing_samples, process_samples, ranking_sequence
+from utils import process_testing_samples, process_samples, ranking_sequence,\
+    get_grad_params, copy_param_data
 from evaluate import evaluate_model
 from data_partition import cluster_data
 from config import CONFIG as conf
@@ -73,9 +74,10 @@ def gen_fisher(model, train_data, all_relations):
     #testing_data = testing_data[0:100]
     softmax_func = nn.LogSoftmax(0)
     loss_func = nn.NLLLoss()
-    fisher_batch_size = 1
+    fisher_batch_size = 10
     batch_epoch = (len(train_data)-1)//fisher_batch_size+1
     fisher = None
+    loss_function = nn.MarginRankingLoss(loss_margin)
     for i in range(batch_epoch):
         model.zero_grad()
         losses = []
@@ -112,6 +114,22 @@ def gen_fisher(model, train_data, all_relations):
         loss_batch = sum(losses)
         #print(loss_batch)
         loss_batch.backward()
+        '''
+        pos_scores = []
+        neg_scores = []
+        start_index = 0
+        for length in relation_set_lengths:
+            pos_scores.append(all_scores[start_index].expand(length-1))
+            neg_scores.append(all_scores[start_index+1:start_index+length])
+            start_index += length
+        pos_scores = torch.cat(pos_scores)
+        neg_scores = torch.cat(neg_scores)
+
+        loss = loss_function(pos_scores, neg_scores,
+                             torch.ones(sum(relation_set_lengths)-
+                                        len(relation_set_lengths)))
+        loss.backward()
+        '''
         grad_params = get_grad_params(model)
         #for param in grad_params:
          #   print(param.grad)
@@ -137,11 +155,11 @@ def update_fisher(model, train_data, all_relations,
     num_total_data = num_past_data + num_cur_data
     if past_fisher is None:
         past_fisher = cur_fisher
-    else if cur_fisher is not None:
+    elif cur_fisher is not None:
         for i in range(len(past_fisher)):
             #past_fisher[i] = past_fisher[i]*num_past_data/num_total_data +\
             #    cur_fisher[i]*num_cur_data/num_total_data
-            past_fisher[i] = torch.max(past_fisher[i], cur_fisher[i])
+            past_fisher[i] = torch.max(past_fisher[i]*1.05, cur_fisher[i])
     return past_fisher, num_total_data
 
 def select_data(model, samples, num_sel_data, all_relations):
@@ -199,6 +217,7 @@ def run_sequence(training_data, testing_data, valid_data, all_relations,
     #np.set_printoptions(precision=3)
     result_whole_test = []
     past_fisher = None
+    num_past_data = 0
     for i in range(num_clusters):
         seen_relations += [data[0] for data in splited_training_data[i] if
                           data[0] not in seen_relations]
@@ -215,8 +234,14 @@ def run_sequence(training_data, testing_data, valid_data, all_relations,
                               device, batch_size, lr, model_path,
                               embedding, all_relations, current_model, epoch,
                               memory_data, loss_margin, past_fisher)
+        '''
+        cur_mem_data = current_train_data
+        for samples in memory_data:
+            cur_mem_data += samples
+        '''
         past_fisher, num_past_data = update_fisher(current_model,
                                                    current_train_data,
+                                                   #cur_mem_data,
                                                    all_relations,
                                                    past_fisher,
                                                    num_past_data)

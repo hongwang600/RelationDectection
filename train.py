@@ -131,9 +131,22 @@ def check_constrain(memory_grads, sample_grad):
     else:
         return True
 
+def rescale_grad(grad, past_fisher):
+    grad_np = grad.cpu().contiguous().view(-1).double().numpy()
+    fisher_1d = torch.cat([item.view(-1) for item in past_fisher])
+    fisher_np_1d = fisher_1d.cpu().double().numpy()
+    reverse_fisher_1d = 1/fisher_np_1d
+    #print(reverse_fisher_1d[:100])
+    scale_fisher = reverse_fisher_1d / reverse_fisher_1d.max()
+    #scale_fisher = (reverse_fisher_1d-reverse_fisher_1d.min())/\
+    #    (reverse_fisher_1d.max()-reverse_fisher_1d.min())
+    #print(scale_fisher.size, grad_np.size)
+    return grad.copy_(torch.Tensor(np.multiply(grad_np, scale_fisher)).view(-1))
+
 def train(training_data, valid_data, vocabulary, embedding_dim, hidden_dim,
           device, batch_size, lr, model_path, embedding, all_relations,
-          model=None, epoch=100, memory_data=[], loss_margin=2.0):
+          model=None, epoch=100, memory_data=[], loss_margin=2.0,
+          past_fisher=None):
     if model is None:
         torch.manual_seed(100)
         model = SimilarityModel(embedding_dim, hidden_dim, len(vocabulary),
@@ -157,9 +170,15 @@ def train(training_data, valid_data, vocabulary, embedding_dim, hidden_dim,
             if len(memory_data_grads) > 0:
                 if not check_constrain(memory_data_grads, sample_grad):
                     project2cone2(sample_grad, memory_data_grads)
-                    grad_params = get_grad_params(model)
-                    grad_dims = [param.data.numel() for param in grad_params]
-                    overwrite_grad(grad_params, sample_grad, grad_dims)
+                    if past_fisher is None:
+                        grad_params = get_grad_params(model)
+                        grad_dims = [param.data.numel() for param in grad_params]
+                        overwrite_grad(grad_params, sample_grad, grad_dims)
+            if past_fisher is not None:
+                sample_grad = rescale_grad(sample_grad, past_fisher)
+                grad_params = get_grad_params(model)
+                grad_dims = [param.data.numel() for param in grad_params]
+                overwrite_grad(grad_params, sample_grad, grad_dims)
             optimizer.step()
             '''
         acc=evaluate_model(model, valid_data, batch_size, all_relations, device)
