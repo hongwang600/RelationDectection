@@ -13,7 +13,7 @@ CONFIG= {
     'num_cands': 10,
     'num_steps': 1,
     'model_path': 'model.pt',
-    'device': torch.device('cuda:0' if torch.cuda.is_available() else 'cpu'),
+    'device': torch.device('cuda:1' if torch.cuda.is_available() else 'cpu'),
     'relation_file': './data/relation.2M.list',
     'training_file': './data/train.replace_ne.withpool',
     'test_file': './data/test.replace_ne.withpool',

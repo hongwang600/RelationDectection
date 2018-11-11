@@ -11,7 +11,7 @@ from data import gen_data
 from model import SimilarityModel
 from utils import process_testing_samples, process_samples, ranking_sequence,\
     get_grad_params, copy_param_data, copy_grad_data
-from evaluate import evaluate_model
+from evaluate import evaluate_model, compute_diff_scores
 from data_partition import cluster_data
 from config import CONFIG as conf
 from train import train
@@ -256,14 +256,18 @@ def update_fisher(model, train_data, all_relations,
     num_total_data = num_past_data + num_cur_data
     if past_fisher is None:
         past_fisher = cur_fisher
-    else:
+    else if cur_fisher is not None:
         for i in range(len(past_fisher)):
             #past_fisher[i] = past_fisher[i]*num_past_data/num_total_data +\
             #    cur_fisher[i]*num_cur_data/num_total_data
             past_fisher[i] = torch.max(past_fisher[i], cur_fisher[i])
     return past_fisher, num_total_data
 
-def filter_data(data, model)
+def filter_data(data, model, all_relations):
+    diff_scores = compute_diff_scores(model, data, batch_size, all_relations,
+                                      device)
+    selected_index = np.argsort(diff_scores)[0:len(data)*9//10]
+    return [data[i] for i in selected_index]
 
 def run_sequence(training_data, testing_data, valid_data, all_relations,
                  vocabulary,embedding, cluster_labels, num_clusters,
@@ -304,6 +308,7 @@ def run_sequence(training_data, testing_data, valid_data, all_relations,
             current_test_data.append(
                 remove_unseen_relation(splited_test_data[j], seen_relations))
         memory_data = []
+        one_memory_data = []
         '''
         for j in range(i):
             memory_data.append(sample_relations(relations_frequences_all,
@@ -312,27 +317,26 @@ def run_sequence(training_data, testing_data, valid_data, all_relations,
                                                 current_train_data))
                                                 '''
         if i > 0:
-            memory_data = sample_relations(relations_frequences_all,
+            one_memory_data = sample_relations(relations_frequences_all,
                                            rel_ques_cand,
-                                           len(current_train_data)*2,
+                                           len(current_train_data),
                                            current_train_data)
-        to_train_data = current_train_data+memory_data
-        random.shuffle(to_train_data)
+        to_train_data = current_train_data+one_memory_data
+        #random.shuffle(to_train_data)
         current_model = train(to_train_data, current_valid_data,
                               vocabulary, embedding_dim, hidden_dim,
                               device, batch_size, lr, model_path,
                               embedding, all_relations, current_model, epoch,
-                              [], loss_margin, past_fisher)
-        to_save_data = filter_data(current_train_data, current_model)
-        enlarge_rel_graph(to_save_data, relations_frequences_all,
+                              memory_data, loss_margin, past_fisher)
+        to_save_data = filter_data(current_train_data, current_model,
+                                   all_relations)
+        enlarge_rel_graph(current_train_data, relations_frequences_all,
                           rel_ques_cand)
-        '''
         past_fisher, num_past_data = update_fisher(current_model,
                                                    current_train_data,
                                                    all_relations,
                                                    past_fisher,
                                                    num_past_data)
-                                                   '''
         #memory_data.append(current_train_data[-task_memory_size:])
         results = [evaluate_model(current_model, test_data, batch_size,
                                   all_relations, device)
