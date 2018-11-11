@@ -6,6 +6,7 @@ import torch.optim as optim
 import sys
 import random
 import time
+from sklearn.cluster import KMeans
 
 from data import gen_data
 from model import SimilarityModel
@@ -47,14 +48,16 @@ def remove_unseen_relation(dataset, seen_relations):
             cleaned_data.append([data[0], neg_cands, data[2]])
     return cleaned_data
 
-def get_que_embed(model, samples, all_relations):
-    for i in range((len(samples)-1)//batch_size+1):
-        samples = samples[i*batch_size:(i+1)*batch_size]
+def get_que_embed(model, sample_list, all_relations):
+    ret_que_embeds = []
+    for i in range((len(sample_list)-1)//batch_size+1):
+        samples = sample_list[i*batch_size:(i+1)*batch_size]
         questions = []
         for item in samples:
             this_question = torch.tensor(item[2], dtype=torch.long).to(device)
             questions.append(this_question)
-        model.init_hidden(device, sum(relation_set_lengths))
+        #print(len(questions))
+        model.init_hidden(device, len(questions))
         ranked_questions, reverse_question_indexs = \
             ranking_sequence(questions)
         question_lengths = [len(question) for question in ranked_questions]
@@ -62,11 +65,35 @@ def get_que_embed(model, samples, all_relations):
         pad_questions = torch.nn.utils.rnn.pad_sequence(ranked_questions)
         que_embeds = model.compute_que_embed(pad_questions, question_lengths,
                                              reverse_question_indexs)
-        return que_embeds
+        ret_que_embeds.append(que_embeds.detach().cpu().numpy())
+    return np.concatenate(ret_que_embeds)
 
 def select_data(model, samples, num_sel_data, all_relations):
-    que_embeds = get_que_embed(mdoel, samples, all_relations)
-    print(que_embeds[:5])
+    que_embeds = get_que_embed(model, samples, all_relations)
+    #print(que_embeds[:5])
+    num_clusters = min(num_sel_data, len(samples))
+    distances = KMeans(n_clusters=num_clusters,
+                    random_state=0).fit_transform(que_embeds)
+    selected_samples = []
+    for i in range(num_clusters):
+        sel_index = np.argmin(distances[:,i])
+        selected_samples.append(samples[sel_index])
+    '''
+    labels = kmeans.labels_
+    sample_in_cluster = [0 for i in range(num_clusters)]
+    total_num_samples = 0
+    max_num_each_cluster = num_sel_data//num_clusters
+    for i, this_sample in enumerate(samples):
+        #print(i, labels)
+        cluster_label = labels[i]
+        if sample_in_cluster[cluster_label] < max_num_each_cluster:
+            selected_samples.append(this_sample)
+            sample_in_cluster[cluster_label] += 1
+            total_num_samples += 1
+        if total_num_samples == task_memory_size:
+            break
+            '''
+    return selected_samples
 
 def print_list(result):
     for num in result:
@@ -111,9 +138,10 @@ def run_sequence(training_data, testing_data, valid_data, all_relations,
                               device, batch_size, lr, model_path,
                               embedding, all_relations, current_model, epoch,
                               memory_data, loss_margin)
-        memory_data.append(current_train_data[-task_memory_size:])
+        #memory_data.append(current_train_data[-task_memory_size:])
         #memory_data.append(splited_training_data[i][-task_memory_size:])
-        select_data(model, current_train_data, task_memory_size, all_relations)
+        memory_data.append(select_data(current_model, current_train_data,
+                                       task_memory_size, all_relations))
         results = [evaluate_model(current_model, test_data, batch_size,
                                   all_relations, device)
                    for test_data in current_test_data]

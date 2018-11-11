@@ -170,4 +170,4 @@ def gen_data():
         vocabulary,embedding
 
 if __name__ == '__main__':
-    gen_data(relation_file, training_file, test_file, valid_file, glove_file)
+    en_data(relation_file, training_file, test_file, valid_file, glove_file)
