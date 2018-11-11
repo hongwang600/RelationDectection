@@ -78,7 +78,7 @@ def feed_samples(model, samples, loss_function, all_relations, device,
                                         saved_que_embeds,
                                         saved_rel_embeds)
         embed_loss = embed_loss.to('cpu')
-       # print('embed loss', embed_loss)
+        print('embed loss', embed_loss)
         #print('loss', loss)
         loss += 0.01 * embed_loss
         #loss = embed_loss
@@ -86,7 +86,7 @@ def feed_samples(model, samples, loss_function, all_relations, device,
     ret_que_embeds, ret_rel_embed = question_embedding.clone(),\
         relation_embedding.clone()
     del loss
-    return ret_que_embeds, ret_rel_embed
+    return ret_que_embeds.detach(), ret_rel_embed.detach()
 
 # copied from facebook open scource. (https://github.com/facebookresearch/
 # GradientEpisodicMemory/blob/master/model/gem.py)
