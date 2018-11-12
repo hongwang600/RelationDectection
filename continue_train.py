@@ -239,12 +239,14 @@ def run_sequence(training_data, testing_data, valid_data, all_relations,
         for samples in memory_data:
             cur_mem_data += samples
         '''
+        '''
         past_fisher, num_past_data = update_fisher(current_model,
                                                    current_train_data,
                                                    #cur_mem_data,
                                                    all_relations,
                                                    past_fisher,
                                                    num_past_data)
+                                                   '''
         #memory_data.append(current_train_data[-task_memory_size:])
         #memory_data.append(splited_training_data[i][-task_memory_size:])
         memory_data.append(select_data(current_model, current_train_data,
