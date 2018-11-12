@@ -90,8 +90,8 @@ def run_sequence(training_data, testing_data, valid_data, all_relations,
                               device, batch_size, lr, model_path,
                               embedding, all_relations, current_model, epoch,
                               memory_data, loss_margin)
-        #memory_data.append(current_train_data[-task_memory_size:])
-        memory_data.append(splited_training_data[i][-task_memory_size:])
+        memory_data.append(current_train_data[-task_memory_size:])
+        #memory_data.append(splited_training_data[i][-task_memory_size:])
         results = [evaluate_model(current_model, test_data, batch_size,
                                   all_relations, device)
                    for test_data in current_test_data]
