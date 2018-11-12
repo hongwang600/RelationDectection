@@ -4,6 +4,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 import torch.optim as optim
 import quadprog
+import random
 
 from data import gen_data
 from model import SimilarityModel
@@ -19,6 +20,7 @@ model_path = conf['model_path']
 device = conf['device']
 lr = conf['learning_rate']
 loss_margin = conf['loss_margin']
+random.seed(100)
 
 def feed_samples(model, samples, loss_function, all_relations, device):
     questions, relations, relation_set_lengths = process_samples(
@@ -87,6 +89,11 @@ def project2cone2(gradient, memories, margin=0.5, eps=1e-3):
     v = quadprog.solve_qp(P, q, G, h)[0]
     #print(v)
     x = np.dot(v, memories_np) + gradient_np
+    x_len = len(x)
+    mask_index = random.sample(list(range(x_len)), x_len*4//5)
+    mask_x = np.ones(x_len)
+    mask_x[mask_index] = 0
+    x = np.multiply(x, mask_x)
     gradient.copy_(torch.Tensor(x).view(-1))
 
 # copied from facebook open scource. (https://github.com/facebookresearch/
