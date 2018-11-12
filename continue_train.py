@@ -159,7 +159,7 @@ def update_fisher(model, train_data, all_relations,
         for i in range(len(past_fisher)):
             #past_fisher[i] = past_fisher[i]*num_past_data/num_total_data +\
             #    cur_fisher[i]*num_cur_data/num_total_data
-            past_fisher[i] = torch.max(past_fisher[i]*1.05, cur_fisher[i])
+            past_fisher[i] = torch.max(past_fisher[i], cur_fisher[i])
     return past_fisher, num_total_data
 
 def select_data(model, samples, num_sel_data, all_relations):

@@ -89,11 +89,15 @@ def project2cone2(gradient, memories, margin=0.5, eps=1e-3):
     v = quadprog.solve_qp(P, q, G, h)[0]
     #print(v)
     x = np.dot(v, memories_np) + gradient_np
+    '''
+    gradient_np.shape=[1,-1]
+    x = np.mean(np.concatenate((memories_np, gradient_np)), 0)
     x_len = len(x)
     mask_index = random.sample(list(range(x_len)), x_len*4//5)
     mask_x = np.ones(x_len)
     mask_x[mask_index] = 0
     x = np.multiply(x, mask_x)
+    '''
     gradient.copy_(torch.Tensor(x).view(-1))
 
 # copied from facebook open scource. (https://github.com/facebookresearch/
@@ -176,6 +180,7 @@ def train(training_data, valid_data, vocabulary, embedding_dim, hidden_dim,
             sample_grad = copy_grad_data(model)
             if len(memory_data_grads) > 0:
                 if not check_constrain(memory_data_grads, sample_grad):
+                #if True:
                     project2cone2(sample_grad, memory_data_grads)
                     if past_fisher is None:
                         grad_params = get_grad_params(model)
