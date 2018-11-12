@@ -14,7 +14,7 @@ from utils import process_testing_samples, process_samples, ranking_sequence,\
 from evaluate import evaluate_model, compute_diff_scores
 from data_partition import cluster_data
 from config import CONFIG as conf
-from train import train
+from train import train, sample_constrains, sample_given_pro
 
 embedding_dim = conf['embedding_dim']
 hidden_dim = conf['hidden_dim']
@@ -86,7 +86,7 @@ def enlarge_rel_graph(train_data, relations_frequences, rel_ques_cand):
             rel_ques_cand[pos_index][1].append(question)
 
 def updata_saved_relations(current_train_data, rel_samples,
-                           relations_frequences_all):
+                           relations_frequences):
     for sample in current_train_data:
         pos_index = sample[0]
         if pos_index not in relations_frequences:
@@ -96,17 +96,6 @@ def updata_saved_relations(current_train_data, rel_samples,
             relations_frequences[pos_index] = \
                 max(50, relations_frequences[pos_index]+1)
             rel_samples[pos_index].append(sample)
-
-
-def sample_given_pro(sample_pro_set, num_samples):
-    samples = list(sample_pro_set.keys())
-    fre = np.array(list(sample_pro_set.values()))
-    pro = fre/float(sum(fre))
-    #print(samples, pro)
-    #selected_sample = np.random.choice(samples, num_samples, True, pro)
-    selected_sample = np.random.choice(samples, num_samples, False, pro)
-    #print(selected_sample)
-    return selected_sample
 
 def walk_n_steps(rel_ques_cand, num_steps, rel):
     for i in range(num_steps):
@@ -285,15 +274,6 @@ def filter_data(data, model, all_relations):
     selected_index = np.argsort(diff_scores)[0:len(data)*9//10]
     return [data[i] for i in selected_index]
 
-def sample_constrains(rel_samples, relations_frequences):
-    selected_rels = sample_given_pro(relations_frequences, num_contrain)
-    ret_samples = []
-    for i in range(num_contrain):
-        rel_index = selected_rels[i]
-        ret_samples.append(random.sample(rel_samples[rel_index],
-                                         min(data_per_constrain,
-                                             len(rel_samples[rel_index]))))
-
 def run_sequence(training_data, testing_data, valid_data, all_relations,
                  vocabulary,embedding, cluster_labels, num_clusters,
                  shuffle_index):
@@ -333,11 +313,12 @@ def run_sequence(training_data, testing_data, valid_data, all_relations,
         for j in range(i+1):
             current_test_data.append(
                 remove_unseen_relation(splited_test_data[j], seen_relations))
-        memory_data = []
         one_memory_data = []
+        '''
         if i > 0:
             memory_data = sample_constrains(rel_samples,
                                             relations_frequences_all)
+                                            '''
         '''
         for j in range(i):
             memory_data.append(sample_relations(relations_frequences_all,
@@ -356,7 +337,8 @@ def run_sequence(training_data, testing_data, valid_data, all_relations,
                               vocabulary, embedding_dim, hidden_dim,
                               device, batch_size, lr, model_path,
                               embedding, all_relations, current_model, epoch,
-                              memory_data, loss_margin, past_fisher)
+                              memory_data, loss_margin, past_fisher,
+                              rel_samples, relations_frequences_all)
         updata_saved_relations(current_train_data, rel_samples,
                                relations_frequences_all)
         #to_save_data = filter_data(current_train_data, current_model,

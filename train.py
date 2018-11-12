@@ -4,6 +4,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 import torch.optim as optim
 import quadprog
+import random
 
 from data import gen_data
 from model import SimilarityModel
@@ -11,6 +12,7 @@ from utils import process_testing_samples, process_samples, ranking_sequence,\
     copy_grad_data, get_grad_params
 from evaluate import evaluate_model
 from config import CONFIG as conf
+#from continue_train import sample_constrains
 
 embedding_dim = conf['embedding_dim']
 hidden_dim = conf['hidden_dim']
@@ -19,6 +21,30 @@ model_path = conf['model_path']
 device = conf['device']
 lr = conf['learning_rate']
 loss_margin = conf['loss_margin']
+num_contrain = conf['num_constrain']
+data_per_constrain = conf['data_per_constrain']
+random.seed(100)
+
+def sample_given_pro(sample_pro_set, num_samples):
+    samples = list(sample_pro_set.keys())
+    fre = np.array(list(sample_pro_set.values()))
+    pro = fre/float(sum(fre))
+    #print(samples, pro)
+    #selected_sample = np.random.choice(samples, num_samples, True, pro)
+    selected_sample = np.random.choice(samples, min(num_samples, len(samples)),
+                                       False, pro)
+    #print(selected_sample)
+    return selected_sample
+
+def sample_constrains(rel_samples, relations_frequences):
+    selected_rels = sample_given_pro(relations_frequences, num_contrain)
+    ret_samples = []
+    for i in range(num_contrain):
+        rel_index = selected_rels[i]
+        ret_samples.append(random.sample(rel_samples[rel_index],
+                                         min(data_per_constrain,
+                                             len(rel_samples[rel_index]))))
+    return ret_samples
 
 def feed_samples(model, samples, loss_function, all_relations, device):
     questions, relations, relation_set_lengths = process_samples(
@@ -149,7 +175,7 @@ def check_constrain(memory_grads, sample_grad):
 def train(training_data, valid_data, vocabulary, embedding_dim, hidden_dim,
           device, batch_size, lr, model_path, embedding, all_relations,
           model=None, epoch=100, memory_data=[], loss_margin=2.0,
-          past_fisher=None):
+          past_fisher=None, rel_samples=[], relation_frequences=[]):
     if model is None:
         torch.manual_seed(100)
         model = SimilarityModel(embedding_dim, hidden_dim, len(vocabulary),
@@ -162,6 +188,9 @@ def train(training_data, valid_data, vocabulary, embedding_dim, hidden_dim,
         #print('epoch', epoch_i)
         #training_data = training_data[0:100]
         for i in range((len(training_data)-1)//batch_size+1):
+            if len(rel_samples) > 0:
+                memory_data = sample_constrains(rel_samples,
+                                                relation_frequences)
             memory_data_grads = get_grads_memory_data(model, memory_data,
                                                       loss_function,
                                                       all_relations,
