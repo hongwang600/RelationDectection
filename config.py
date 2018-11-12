@@ -12,6 +12,8 @@ CONFIG= {
     'sequence_times': 5,
     'num_cands': 10,
     'num_steps': 1,
+    'num_constrain': 10,
+    'data_per_constrain': 10,
     'model_path': 'model.pt',
     'device': torch.device('cuda:1' if torch.cuda.is_available() else 'cpu'),
     'relation_file': './data/relation.2M.list',

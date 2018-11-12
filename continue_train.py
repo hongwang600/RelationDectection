@@ -30,6 +30,8 @@ loss_margin = conf['loss_margin']
 sequence_times = conf['sequence_times']
 num_cands = conf['num_cands']
 num_steps = conf['num_steps']
+num_contrain = conf['num_constrain']
+data_per_constrain = conf['data_per_constrain']
 
 def split_data(data_set, cluster_labels, num_clusters, shuffle_index):
     splited_data = [[] for i in range(num_clusters)]
@@ -83,12 +85,26 @@ def enlarge_rel_graph(train_data, relations_frequences, rel_ques_cand):
         if len(rel_ques_cand[pos_index][1]) < 10:
             rel_ques_cand[pos_index][1].append(question)
 
+def updata_saved_relations(current_train_data, rel_samples,
+                           relations_frequences_all):
+    for sample in current_train_data:
+        pos_index = sample[0]
+        if pos_index not in relations_frequences:
+            relations_frequences[pos_index] = 1
+            rel_samples[pos_index] = [sample]
+        else:
+            relations_frequences[pos_index] = \
+                max(50, relations_frequences[pos_index]+1)
+            rel_samples[pos_index].append(sample)
+
+
 def sample_given_pro(sample_pro_set, num_samples):
     samples = list(sample_pro_set.keys())
     fre = np.array(list(sample_pro_set.values()))
     pro = fre/float(sum(fre))
     #print(samples, pro)
-    selected_sample = np.random.choice(samples, num_samples, True, pro)
+    #selected_sample = np.random.choice(samples, num_samples, True, pro)
+    selected_sample = np.random.choice(samples, num_samples, False, pro)
     #print(selected_sample)
     return selected_sample
 
@@ -256,7 +272,7 @@ def update_fisher(model, train_data, all_relations,
     num_total_data = num_past_data + num_cur_data
     if past_fisher is None:
         past_fisher = cur_fisher
-    else if cur_fisher is not None:
+    elif cur_fisher is not None:
         for i in range(len(past_fisher)):
             #past_fisher[i] = past_fisher[i]*num_past_data/num_total_data +\
             #    cur_fisher[i]*num_cur_data/num_total_data
@@ -268,6 +284,15 @@ def filter_data(data, model, all_relations):
                                       device)
     selected_index = np.argsort(diff_scores)[0:len(data)*9//10]
     return [data[i] for i in selected_index]
+
+def sample_constrains(rel_samples, relations_frequences):
+    selected_rels = sample_given_pro(relations_frequences, num_contrain)
+    ret_samples = []
+    for i in range(num_contrain):
+        rel_index = selected_rels[i]
+        ret_samples.append(random.sample(rel_samples[rel_index],
+                                         min(data_per_constrain,
+                                             len(rel_samples[rel_index]))))
 
 def run_sequence(training_data, testing_data, valid_data, all_relations,
                  vocabulary,embedding, cluster_labels, num_clusters,
@@ -294,6 +319,7 @@ def run_sequence(training_data, testing_data, valid_data, all_relations,
     relations_frequences_all = {}
     relations_frequences_task = []
     rel_ques_cand = {}
+    rel_samples = {}
     past_fisher = None
     num_past_data = 0
     for i in range(num_clusters):
@@ -309,18 +335,21 @@ def run_sequence(training_data, testing_data, valid_data, all_relations,
                 remove_unseen_relation(splited_test_data[j], seen_relations))
         memory_data = []
         one_memory_data = []
+        if i > 0:
+            memory_data = sample_constrains(rel_samples,
+                                            relations_frequences_all)
         '''
         for j in range(i):
             memory_data.append(sample_relations(relations_frequences_all,
                                                 rel_ques_cand,
                                                 task_memory_size,
                                                 current_train_data))
-                                                '''
         if i > 0:
             one_memory_data = sample_relations(relations_frequences_all,
                                            rel_ques_cand,
                                            len(current_train_data),
                                            current_train_data)
+        '''
         to_train_data = current_train_data+one_memory_data
         #random.shuffle(to_train_data)
         current_model = train(to_train_data, current_valid_data,
@@ -328,15 +357,19 @@ def run_sequence(training_data, testing_data, valid_data, all_relations,
                               device, batch_size, lr, model_path,
                               embedding, all_relations, current_model, epoch,
                               memory_data, loss_margin, past_fisher)
-        to_save_data = filter_data(current_train_data, current_model,
-                                   all_relations)
-        enlarge_rel_graph(current_train_data, relations_frequences_all,
-                          rel_ques_cand)
+        updata_saved_relations(current_train_data, rel_samples,
+                               relations_frequences_all)
+        #to_save_data = filter_data(current_train_data, current_model,
+        #                           all_relations)
+        #enlarge_rel_graph(current_train_data, relations_frequences_all,
+        #                  rel_ques_cand)
+        '''
         past_fisher, num_past_data = update_fisher(current_model,
                                                    current_train_data,
                                                    all_relations,
                                                    past_fisher,
                                                    num_past_data)
+                                                   '''
         #memory_data.append(current_train_data[-task_memory_size:])
         results = [evaluate_model(current_model, test_data, batch_size,
                                   all_relations, device)
