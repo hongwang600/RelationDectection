@@ -94,7 +94,8 @@ def updata_saved_relations(current_train_data, rel_samples,
             rel_samples[pos_index] = [sample]
         else:
             relations_frequences[pos_index] = \
-                max(50, relations_frequences[pos_index]+1)
+                relations_frequences[pos_index] + 1
+                #max(50, relations_frequences[pos_index]+1)
             rel_samples[pos_index].append(sample)
 
 def walk_n_steps(rel_ques_cand, num_steps, rel):
