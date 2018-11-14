@@ -16,6 +16,7 @@ CONFIG= {
     'data_per_constrain': 10,
     'model_path': 'model.pt',
     'device': torch.device('cuda:1' if torch.cuda.is_available() else 'cpu'),
+    'bert_feature_file': 'bert_feature.txt',
     'relation_file': './data/relation.2M.list',
     'training_file': './data/train.replace_ne.withpool',
     'test_file': './data/test.replace_ne.withpool',

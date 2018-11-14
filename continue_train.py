@@ -15,6 +15,7 @@ from evaluate import evaluate_model, compute_diff_scores
 from data_partition import cluster_data
 from config import CONFIG as conf
 from train import train, sample_constrains, sample_given_pro
+from compute_rel_embed import compute_rel_embed
 
 embedding_dim = conf['embedding_dim']
 hidden_dim = conf['hidden_dim']
@@ -383,6 +384,7 @@ if __name__ == '__main__':
     random_seed = int(sys.argv[1])
     training_data, testing_data, valid_data, all_relations, vocabulary, \
         embedding=gen_data()
+    bert_rel_features = compute_rel_embed(training_data)
     #print_avg_cand(training_data)
     cluster_labels = cluster_data(num_clusters)
     random.seed(random_seed)
