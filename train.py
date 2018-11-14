@@ -39,7 +39,7 @@ def sample_given_pro(sample_pro_set, num_samples):
 def sample_constrains(rel_samples, relations_frequences):
     selected_rels = sample_given_pro(relations_frequences, num_contrain)
     ret_samples = []
-    for i in range(num_contrain):
+    for i in range(len(selected_rels)):
         rel_index = selected_rels[i]
         ret_samples.append(random.sample(rel_samples[rel_index],
                                          min(data_per_constrain,
