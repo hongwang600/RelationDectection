@@ -80,6 +80,7 @@ def run_sequence(training_data, testing_data, valid_data, all_relations,
     memory_data = []
     all_seen_samples = []
     sequence_results = []
+    rel_sample_count = {}
     #np.set_printoptions(precision=3)
     result_whole_test = []
     for i in range(num_clusters):
@@ -105,7 +106,14 @@ def run_sequence(training_data, testing_data, valid_data, all_relations,
                    for test_data in current_test_data]
         print_list(results)
         sequence_results.append(np.array(results))
-        all_seen_samples += current_train_data
+        for this_data in current_train_data:
+            pos_index = this_data[0]
+            if pos_index not in rel_sample_count:
+                rel_sample_count[pos_index] = 1
+                all_seen_samples.append(this_data)
+            elif rel_sample_count[pos_index] < 10:
+                rel_sample_count[pos_index] += 1
+                all_seen_samples.append(this_data)
         result_whole_test.append(evaluate_model(current_model,
                                                 testing_data, batch_size,
                                                 all_relations, device))
