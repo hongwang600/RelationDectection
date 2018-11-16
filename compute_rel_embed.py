@@ -1,9 +1,10 @@
 import numpy as np
 from sklearn.decomposition import PCA
-from matplotlib import pyplot
+#from matplotlib import pyplot
 from data import gen_data
+from config import CONFIG as conf
 
-ber_feature_file = config['ber_feature_file']
+bert_feature_file = conf['bert_feature_file']
 
 # visualize using PCA
 def visualize_PCA(X, names):
@@ -40,7 +41,7 @@ def read_embedding(file_name):
     return np.asarray(ret_np)
 
 def compute_rel_embed(training_data, relation_names=None):
-    que_rel_embeddings = read_embedding(ber_feature_file)
+    que_rel_embeddings = read_embedding(bert_feature_file)
     rel_indexs = {}
     for i, sample in enumerate(training_data):
         rel = sample[0]
@@ -72,7 +73,7 @@ if __name__ == "__main__":
     relation_names = read_relation_name('question_relation.txt')
     training_data, testing_data, valid_data, all_relations, vocabulary, \
         embedding=gen_data()
-    rel_names, rel_embed_values,rel_embed=compute_rel_embed(raining_data,
+    rel_names, rel_embed_values,rel_embed=compute_rel_embed(training_data,
                                                             relation_names)
     visualize_PCA(rel_embed_values, rel_names)
     #num_samples_2_visual = len(relation_embeddings)

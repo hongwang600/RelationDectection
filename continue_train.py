@@ -75,28 +75,31 @@ def enlarge_rel_graph(train_data, relations_frequences, rel_ques_cand):
         pos_index = sample[0]
         neg_cands = sample[1][:]
         question = sample[2]
-        if pos_index not in relations_frequences:
-            relations_frequences[pos_index] = 1
-        else:
-            relations_frequences[pos_index] += 1
-            relations_frequences[pos_index] = \
-                max(50, relations_frequences[pos_index])
+        if relations_frequences is not None:
+            if pos_index not in relations_frequences:
+                relations_frequences[pos_index] = 1
+            else:
+                relations_frequences[pos_index] += 1
+                relations_frequences[pos_index] = \
+                    max(50, relations_frequences[pos_index])
         all_rels = [pos_index] + neg_cands
         add_co_occur_edges(rel_ques_cand, all_rels)
         if len(rel_ques_cand[pos_index][1]) < 10:
             rel_ques_cand[pos_index][1].append(question)
 
 def updata_saved_relations(current_train_data, rel_samples,
-                           relations_frequences):
+                           relations_frequences, rel_acc_diff, acc_diff):
     for sample in current_train_data:
         pos_index = sample[0]
         if pos_index not in relations_frequences:
             relations_frequences[pos_index] = 1
+            rel_acc_diff[pos_index] = acc_diff + 0.0001
             rel_samples[pos_index] = [sample]
         else:
             relations_frequences[pos_index] = \
-                max(50, relations_frequences[pos_index]+1)
-            rel_samples[pos_index].append(sample)
+                max(10, relations_frequences[pos_index]+1)
+            if len(rel_samples[pos_index]) < 10:
+                rel_samples[pos_index].append(sample)
 
 def walk_n_steps(rel_ques_cand, num_steps, rel):
     for i in range(num_steps):
@@ -277,7 +280,7 @@ def filter_data(data, model, all_relations):
 
 def run_sequence(training_data, testing_data, valid_data, all_relations,
                  vocabulary,embedding, cluster_labels, num_clusters,
-                 shuffle_index):
+                 shuffle_index, bert_rel_features):
     splited_training_data = split_data(training_data, cluster_labels,
                                        num_clusters, shuffle_index)
     splited_valid_data = split_data(valid_data, cluster_labels,
@@ -301,6 +304,7 @@ def run_sequence(training_data, testing_data, valid_data, all_relations,
     relations_frequences_task = []
     rel_ques_cand = {}
     rel_samples = {}
+    rel_acc_diff = {}
     past_fisher = None
     num_past_data = 0
     for i in range(num_clusters):
@@ -334,18 +338,19 @@ def run_sequence(training_data, testing_data, valid_data, all_relations,
         '''
         to_train_data = current_train_data+one_memory_data
         #random.shuffle(to_train_data)
-        current_model = train(to_train_data, current_valid_data,
+        current_model, acc_diff = train(to_train_data, current_valid_data,
                               vocabulary, embedding_dim, hidden_dim,
                               device, batch_size, lr, model_path,
                               embedding, all_relations, current_model, epoch,
                               memory_data, loss_margin, past_fisher,
-                              rel_samples, relations_frequences_all)
+                              rel_samples, relations_frequences_all,
+                              bert_rel_features, rel_ques_cand, rel_acc_diff)
         updata_saved_relations(current_train_data, rel_samples,
-                               relations_frequences_all)
+                               relations_frequences_all, rel_acc_diff, acc_diff)
         #to_save_data = filter_data(current_train_data, current_model,
         #                           all_relations)
-        #enlarge_rel_graph(current_train_data, relations_frequences_all,
-        #                  rel_ques_cand)
+        enlarge_rel_graph(current_train_data, None,
+                          rel_ques_cand)
         '''
         past_fisher, num_past_data = update_fisher(current_model,
                                                    current_train_data,
@@ -384,9 +389,9 @@ if __name__ == '__main__':
     random_seed = int(sys.argv[1])
     training_data, testing_data, valid_data, all_relations, vocabulary, \
         embedding=gen_data()
-    bert_rel_features = compute_rel_embed(training_data)
+    #bert_rel_features = compute_rel_embed(training_data)
     #print_avg_cand(training_data)
-    cluster_labels = cluster_data(num_clusters)
+    cluster_labels, bert_rel_features = cluster_data(num_clusters)
     random.seed(random_seed)
     start_time = time.time()
     all_results = []
@@ -399,7 +404,8 @@ if __name__ == '__main__':
         random.shuffle(shuffle_index)
         sequence_results, result_whole_test = run_sequence(
             training_data, testing_data, valid_data, all_relations,
-            vocabulary, embedding, cluster_labels, num_clusters, shuffle_index)
+            vocabulary, embedding, cluster_labels, num_clusters, shuffle_index,
+            bert_rel_features)
         all_results.append(sequence_results)
         result_all_test_data.append(result_whole_test)
     avg_result_all_test = np.average(result_all_test_data, 0)
