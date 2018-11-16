@@ -95,11 +95,10 @@ def updata_saved_relations(current_train_data, rel_samples,
             relations_frequences[pos_index] = 1
             rel_acc_diff[pos_index] = acc_diff + 0.0001
             rel_samples[pos_index] = [sample]
-        else:
+        elif len(rel_samples[pos_index]) < 10:
             relations_frequences[pos_index] = \
                 max(10, relations_frequences[pos_index]+1)
-            if len(rel_samples[pos_index]) < 10:
-                rel_samples[pos_index].append(sample)
+            rel_samples[pos_index].append(sample)
 
 def walk_n_steps(rel_ques_cand, num_steps, rel):
     for i in range(num_steps):
