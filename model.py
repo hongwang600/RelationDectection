@@ -95,7 +95,7 @@ class SimilarityModel(nn.Module):
                                                     question_lengths)
         question_embedding = self.sentence_biLstm(question_packed)
         question_embedding = question_embedding[reverse_question_indexs]
-        return question_embedding
+        return question_embedding.detach()
 
     def forward(self, question_list, relation_list, device,
                 reverse_question_indexs, reverse_relation_indexs,
