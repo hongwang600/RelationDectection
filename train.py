@@ -96,15 +96,27 @@ def sample_given_pro_bert(sample_pro_set, num_samples, bert_rel_feature,
     #print(sel_index)
     #return [samples[i] for i in sel_index]
     #print(sample_bert_embeds.size(), seed_rel_embeds.size())
-    #dis = nn.CosineSimilarity(dim=1)
-    dis = torch.nn.PairwiseDistance()
+    dis = nn.CosineSimilarity(dim=1)
+    #dis = torch.nn.PairwiseDistance()
     sample_similarity = []
     for seed_rel in seed_rel_embeds:
         sample_similarity.append(dis(sample_bert_embeds, seed_rel.view(1,-1)))
     sample_similarity = torch.stack(sample_similarity)
     #print(sample_similarity.size())
     #print(sample_similarity)
-    sample_similarity = sample_similarity.mean(0).cpu().double().numpy()
+    #sample_similarity = sample_similarity.mean(0).cpu().double().numpy()
+    sample_similarity, _ = sample_similarity.max(0)
+    sample_similarity = sample_similarity.cpu().double().numpy()
+    #sel_index = sample_similarity.argsort()[
+    #    -(min(num_samples, len(samples))):]
+    #return [samples[i] for i in sel_index]
+    #sample_similarity += 1
+    #sample_similarity = np.exp(sample_similarity)
+    #sample_similarity = 1 - sample_similarity
+    for i in range(len(sample_similarity)):
+        sample_similarity[i] = max(0.001, sample_similarity[i])
+    #print(sample_similarity)
+    #sample_similarity = 1/sample_similarity
     #print(sample_similarity)
     #fre = np.array(list(sample_pro_set.values())) + sample_similarity*10
     #fre = np.array(list(sample_pro_set.values())) +\
@@ -113,9 +125,9 @@ def sample_given_pro_bert(sample_pro_set, num_samples, bert_rel_feature,
     fre = np.array(list(sample_pro_set.values()))
     #fre = np.multiply(np.array(list(sample_pro_set.values())),
     #                  np.array(list(rel_acc_diff.values())))
-    pro = fre/float(sum(fre))
+    #pro = fre/float(sum(fre))
     #sample_similarity = np.exp(sample_similarity)
-    #pro = sample_similarity/sum(sample_similarity)
+    pro = sample_similarity/sum(sample_similarity)
     #print('fre', fre/float(sum(fre)))
     #print('simi', pro)
     #sel_index = mix_random_center(pro, num_constrain//2, sample_bert_embeds)
@@ -134,7 +146,7 @@ def sample_constrains(rel_samples, relations_frequences, bert_rel_feature,
                                           bert_rel_feature, seed_rels,
                                           rel_acc_diff)
     ret_samples = []
-    for i in range(num_constrain):
+    for i in range(min(num_constrain, len(selected_rels))):
         rel_index = selected_rels[i]
         ret_samples.append(random.sample(rel_samples[rel_index],
                                          min(data_per_constrain,
@@ -280,7 +292,8 @@ def train(training_data, valid_data, vocabulary, embedding_dim, hidden_dim,
           device, batch_size, lr, model_path, embedding, all_relations,
           model=None, epoch=100, memory_data=[], loss_margin=2.0,
           past_fisher=None, rel_samples=[], relation_frequences=[],
-          bert_rel_feature=None, rel_ques_cand=None, rel_acc_diff=None):
+          rel_embeds=None, rel_ques_cand=None, rel_acc_diff=None,
+          all_seen_rels=None, update_rel_embed=None):
     if model is None:
         torch.manual_seed(100)
         model = SimilarityModel(embedding_dim, hidden_dim, len(vocabulary),
@@ -299,11 +312,16 @@ def train(training_data, valid_data, vocabulary, embedding_dim, hidden_dim,
             for item in samples:
                 if item[0] not in seed_rels:
                     seed_rels.append(item[0])
+                    '''
+                for item_cand in item[1]:
+                    if item_cand not in seed_rels:
+                        seed_rels.append(item_cand)
+                        '''
 
             if len(rel_samples) > 0:
                 memory_data = sample_constrains(rel_samples,
                                                 relation_frequences,
-                                                bert_rel_feature,
+                                                rel_embeds,
                                                 seed_rels, rel_ques_cand,
                                                 rel_acc_diff)
             memory_data_grads = get_grads_memory_data(model, memory_data,
@@ -330,6 +348,8 @@ def train(training_data, valid_data, vocabulary, embedding_dim, hidden_dim,
                 grad_dims = [param.data.numel() for param in grad_params]
                 overwrite_grad(grad_params, sample_grad, grad_dims)
             optimizer.step()
+            if(epoch_i%5==0):
+                update_rel_embed(model, all_seen_rels, all_relations, rel_embeds)
             del scores
             del loss
             '''

@@ -95,9 +95,10 @@ def updata_saved_relations(current_train_data, rel_samples,
             relations_frequences[pos_index] = 1
             rel_acc_diff[pos_index] = acc_diff + 0.0001
             rel_samples[pos_index] = [sample]
-        elif len(rel_samples[pos_index]) < 10:
+        else:
+        #elif len(rel_samples[pos_index]) < 10:
             relations_frequences[pos_index] = \
-                max(10, relations_frequences[pos_index]+1)
+                max(50, relations_frequences[pos_index]+1)
             rel_samples[pos_index].append(sample)
 
 def walk_n_steps(rel_ques_cand, num_steps, rel):
@@ -277,9 +278,27 @@ def filter_data(data, model, all_relations):
     selected_index = np.argsort(diff_scores)[0:len(data)*9//10]
     return [data[i] for i in selected_index]
 
+def update_rel_embed(model, all_seen_rels, all_relations, rel_embeds):
+    if model is not None and len(all_seen_rels) > 0:
+        for i in range((len(all_seen_rels)-1)//batch_size+1):
+            seen_rels_batch = all_seen_rels[i*batch_size:(i+1)*batch_size]
+            relations = [torch.tensor(all_relations[i],
+                                          dtype=torch.long).to(device)
+                             for i in seen_rels_batch]
+            model.init_hidden(device, len(relations))
+            ranked_relations, reverse_relation_indexs = \
+                ranking_sequence(relations)
+            relation_lengths = [len(relation) for relation in ranked_relations]
+            #print(ranked_relations)
+            pad_relations = torch.nn.utils.rnn.pad_sequence(ranked_relations)
+            new_rel_embeds = model.compute_que_embed(pad_relations, relation_lengths,
+                                                 reverse_relation_indexs)
+            for i, rel in enumerate(seen_rels_batch):
+                rel_embeds[rel] = new_rel_embeds[i].cpu().numpy()
+
 def run_sequence(training_data, testing_data, valid_data, all_relations,
                  vocabulary,embedding, cluster_labels, num_clusters,
-                 shuffle_index, bert_rel_features):
+                 shuffle_index, rel_embeds):
     splited_training_data = split_data(training_data, cluster_labels,
                                        num_clusters, shuffle_index)
     splited_valid_data = split_data(valid_data, cluster_labels,
@@ -304,6 +323,7 @@ def run_sequence(training_data, testing_data, valid_data, all_relations,
     rel_ques_cand = {}
     rel_samples = {}
     rel_acc_diff = {}
+    all_seen_rels = []
     past_fisher = None
     num_past_data = 0
     for i in range(num_clusters):
@@ -335,6 +355,14 @@ def run_sequence(training_data, testing_data, valid_data, all_relations,
                                            len(current_train_data),
                                            current_train_data)
         '''
+        #all_seen_rels = list(relations_frequences_all.keys())
+        for this_sample in current_train_data:
+            if this_sample[0] not in all_seen_rels:
+                all_seen_rels.append(this_sample[0])
+            for this_cand in this_sample[1]:
+                if this_cand not in all_seen_rels:
+                    all_seen_rels.append(this_cand)
+        update_rel_embed(current_model, all_seen_rels, all_relations, rel_embeds)
         to_train_data = current_train_data+one_memory_data
         #random.shuffle(to_train_data)
         current_model, acc_diff = train(to_train_data, current_valid_data,
@@ -343,13 +371,14 @@ def run_sequence(training_data, testing_data, valid_data, all_relations,
                               embedding, all_relations, current_model, epoch,
                               memory_data, loss_margin, past_fisher,
                               rel_samples, relations_frequences_all,
-                              bert_rel_features, rel_ques_cand, rel_acc_diff)
+                              rel_embeds, rel_ques_cand, rel_acc_diff,
+                                        all_seen_rels, update_rel_embed)
         updata_saved_relations(current_train_data, rel_samples,
                                relations_frequences_all, rel_acc_diff, acc_diff)
         #to_save_data = filter_data(current_train_data, current_model,
         #                           all_relations)
-        enlarge_rel_graph(current_train_data, None,
-                          rel_ques_cand)
+        #enlarge_rel_graph(current_train_data, None,
+        #                   rel_ques_cand)
         '''
         past_fisher, num_past_data = update_fisher(current_model,
                                                    current_train_data,
@@ -390,7 +419,8 @@ if __name__ == '__main__':
         embedding=gen_data()
     #bert_rel_features = compute_rel_embed(training_data)
     #print_avg_cand(training_data)
-    cluster_labels, bert_rel_features = cluster_data(num_clusters)
+    cluster_labels, rel_features = cluster_data(num_clusters)
+    to_use_embed = rel_features
     random.seed(random_seed)
     start_time = time.time()
     all_results = []
@@ -404,7 +434,7 @@ if __name__ == '__main__':
         sequence_results, result_whole_test = run_sequence(
             training_data, testing_data, valid_data, all_relations,
             vocabulary, embedding, cluster_labels, num_clusters, shuffle_index,
-            bert_rel_features)
+            to_use_embed)
         all_results.append(sequence_results)
         result_all_test_data.append(result_whole_test)
     avg_result_all_test = np.average(result_all_test_data, 0)

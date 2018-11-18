@@ -87,6 +87,26 @@ class SimilarityModel(nn.Module):
         sequence = [sequence[i] for i in indexs]
         return sequence, inverse_indexs
 
+    def compute_que_embed(self, question_list, question_lengths,
+                          reverse_question_indexs):
+        question_embeds = self.word_embeddings(question_list)
+        question_packed = \
+            torch.nn.utils.rnn.pack_padded_sequence(question_embeds,
+                                                    question_lengths)
+        question_embedding = self.sentence_biLstm(question_packed)
+        question_embedding = question_embedding[reverse_question_indexs]
+        return question_embedding.detach()
+
+    def compute_rel_embed(self, relation_list, relation_lengths,
+                          reverse_relation_indexs):
+        relation_embeds = self.word_embeddings(relation_list)
+        relation_packed = \
+            torch.nn.utils.rnn.pack_padded_sequence(relation_embeds,
+                                                    relation_lengths)
+        relation_embedding = self.sentence_biLstm(relation_packed)
+        relation_embedding = relation_embedding[reverse_relation_indexs]
+        return relation_embedding.detach()
+
     def forward(self, question_list, relation_list, device,
                 reverse_question_indexs, reverse_relation_indexs,
                 question_lengths, relation_lengths):
