@@ -14,7 +14,7 @@ from utils import process_testing_samples, process_samples, ranking_sequence,\
 from evaluate import evaluate_model, compute_diff_scores
 from data_partition import cluster_data
 from config import CONFIG as conf
-from train import train, sample_constrains, sample_given_pro
+from train import train, sample_constrains, sample_given_pro, get_nearest_cand
 from compute_rel_embed import compute_rel_embed
 
 embedding_dim = conf['embedding_dim']
@@ -337,6 +337,15 @@ def save_rel_embeds(model, all_seen_rels, all_relations, file_name):
                 to_write = [round(x, 6) for x in embed]
                 writer.write(str(to_write)+'\n')
 
+def update_rel_cands(memory_data, all_seen_cands, rel_embeds):
+    if len(memory_data) >0:
+        for this_memory in memory_data:
+            for sample in this_memory:
+                #sample = [sample[0], random.sample(all_seen_cands, num_cands),
+                #          sample[2]]
+                sample = [sample[0], get_nearest_cand(sample[0], all_seen_rels,
+                                                      rel_embeds, num_cands)]
+
 def run_sequence(training_data, testing_data, valid_data, all_relations,
                  vocabulary,embedding, cluster_labels, num_clusters,
                  shuffle_index, rel_embeds):
@@ -407,6 +416,7 @@ def run_sequence(training_data, testing_data, valid_data, all_relations,
                     all_seen_rels.append(this_cand)
         update_rel_embed(current_model, all_seen_rels, all_relations, rel_embeds)
         to_train_data = current_train_data+one_memory_data
+        update_rel_cands(memory_data, all_seen_rels, rel_embeds)
         #random.shuffle(to_train_data)
         current_model, acc_diff = train(to_train_data, current_valid_data,
                               vocabulary, embedding_dim, hidden_dim,
@@ -416,9 +426,9 @@ def run_sequence(training_data, testing_data, valid_data, all_relations,
                               rel_samples, relations_frequences_all,
                               rel_embeds, rel_ques_cand, rel_acc_diff,
                                         all_seen_rels, update_rel_embed)
-        updata_saved_relations(current_train_data, rel_samples,
-                               relations_frequences_all, rel_acc_diff, acc_diff)
-        updata_full_saved_relations(splited_training_data[i], full_rel_samples)
+        #updata_saved_relations(current_train_data, rel_samples,
+        #                       relations_frequences_all, rel_acc_diff, acc_diff)
+        #updata_full_saved_relations(splited_training_data[i], full_rel_samples)
         #rel_samples = rm_unseen_rels(full_rel_samples, seen_relations)
         #save_rel_embeds(current_model, all_seen_rels, all_relations,
         #                'model_embed/embed'+str(i)+'.txt')
@@ -433,7 +443,7 @@ def run_sequence(training_data, testing_data, valid_data, all_relations,
                                                    past_fisher,
                                                    num_past_data)
                                                    '''
-        #memory_data.append(current_train_data[-task_memory_size:])
+        memory_data.append(current_train_data[-task_memory_size:])
         results = [evaluate_model(current_model, test_data, batch_size,
                                   all_relations, device)
                    for test_data in current_test_data]

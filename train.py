@@ -90,7 +90,7 @@ def mix_random_center(pro, num_seed, sample_bert_embeds):
     #print(sel_seed_indexs, sel_index, len(pro))
     return list(sel_seed_indexs) + sel_index
 
-def select_data(embeds, samples, num_sel_data):
+def select_data_kmeans(embeds, samples, num_sel_data):
     #que_embeds = get_que_embed(model, samples, all_relations)
     #print(que_embeds[:5])
     embeds_Norm = preprocessing.normalize(embeds)
@@ -125,7 +125,7 @@ def sample_given_pro_bert(sample_pro_set, num_samples, bert_rel_feature,
     seed_rel_embeds = torch.from_numpy(np.asarray(
         [bert_rel_feature[i] for i in seed_rels])).to(device)
     sample_embeds_np = sample_bert_embeds.cpu().double().numpy()
-    #return select_data(sample_embeds_np, samples, num_constrain)
+    #return select_data_kmeans(sample_embeds_np, samples, num_constrain)
     #'''
     seed_center = random.sample(list(range(len(samples))), 1)[0]
     seed_center_embed = sample_bert_embeds[seed_center]
@@ -401,7 +401,10 @@ def train(training_data, valid_data, vocabulary, embedding_dim, hidden_dim,
                                                 seed_rels, rel_ques_cand,
                                                 rel_acc_diff,
                                                 given_pro, all_seen_rels)
-            memory_data_grads = get_grads_memory_data(model, memory_data,
+            to_train_mem = memory_data
+            if len(memory_data) > num_constrain:
+                to_train_mem = random.sample(memory_data, num_constrain)
+            memory_data_grads = get_grads_memory_data(model, to_train_mem,
                                                       loss_function,
                                                       all_relations,
                                                       device)
