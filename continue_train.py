@@ -85,8 +85,9 @@ def run_sequence(training_data, testing_data, valid_data, all_relations,
             current_test_data.append(
                 remove_unseen_relation(splited_test_data[j], seen_relations))
         #current_model = None
-        to_train_data = current_train_data + random.sample(
-            all_seen_data, min(len(all_seen_data), len(current_train_data)))
+        #to_train_data = current_train_data + random.sample(
+        #    all_seen_data, min(len(all_seen_data), len(current_train_data)))
+        to_train_data = current_train_dat + all_seen_data
         #random.shuffle(all_seen_data)
         #random.shuffle(to_train_data)
         current_model = train(to_train_data, current_valid_data,
