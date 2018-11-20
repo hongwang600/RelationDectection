@@ -6,6 +6,7 @@ import torch.optim as optim
 import sys
 import random
 import time
+from sklearn.cluster import KMeans
 
 from data import gen_data
 from model import SimilarityModel
@@ -14,7 +15,8 @@ from utils import process_testing_samples, process_samples, ranking_sequence,\
 from evaluate import evaluate_model, compute_diff_scores
 from data_partition import cluster_data
 from config import CONFIG as conf
-from train import train, sample_constrains, sample_given_pro, get_nearest_cand
+from train import train, sample_constrains, sample_given_pro, get_nearest_cand,\
+    select_data_kmeans
 from compute_rel_embed import compute_rel_embed
 
 embedding_dim = conf['embedding_dim']
@@ -343,8 +345,40 @@ def update_rel_cands(memory_data, all_seen_cands, rel_embeds):
             for sample in this_memory:
                 #sample = [sample[0], random.sample(all_seen_cands, num_cands),
                 #          sample[2]]
-                sample = [sample[0], get_nearest_cand(sample[0], all_seen_rels,
+                sample = [sample[0], get_nearest_cand(sample[0], all_seen_cands,
                                                       rel_embeds, num_cands)]
+
+def get_que_embed(model, sample_list, all_relations):
+    ret_que_embeds = []
+    for i in range((len(sample_list)-1)//batch_size+1):
+        samples = sample_list[i*batch_size:(i+1)*batch_size]
+        questions = []
+        for item in samples:
+            this_question = torch.tensor(item[2], dtype=torch.long).to(device)
+            questions.append(this_question)
+        #print(len(questions))
+        model.init_hidden(device, len(questions))
+        ranked_questions, reverse_question_indexs = \
+            ranking_sequence(questions)
+        question_lengths = [len(question) for question in ranked_questions]
+        #print(ranked_questions)
+        pad_questions = torch.nn.utils.rnn.pad_sequence(ranked_questions)
+        que_embeds = model.compute_que_embed(pad_questions, question_lengths,
+                                             reverse_question_indexs)
+        ret_que_embeds.append(que_embeds.detach().cpu().numpy())
+    return np.concatenate(ret_que_embeds)
+
+def select_data(model, samples, num_sel_data, all_relations):
+    que_embeds = get_que_embed(model, samples, all_relations)
+    #print(que_embeds[:5])
+    num_clusters = min(num_sel_data, len(samples))
+    distances = KMeans(n_clusters=num_clusters,
+                    random_state=0).fit_transform(que_embeds)
+    selected_samples = []
+    for i in range(num_clusters):
+        sel_index = np.argmin(distances[:,i])
+        selected_samples.append(samples[sel_index])
+    return selected_samples
 
 def run_sequence(training_data, testing_data, valid_data, all_relations,
                  vocabulary,embedding, cluster_labels, num_clusters,
@@ -443,7 +477,9 @@ def run_sequence(training_data, testing_data, valid_data, all_relations,
                                                    past_fisher,
                                                    num_past_data)
                                                    '''
-        memory_data.append(current_train_data[-task_memory_size:])
+        #memory_data.append(current_train_data[-task_memory_size:])
+        memory_data.append(select_data(current_model, current_train_data,
+                                       task_memory_size, all_relations))
         results = [evaluate_model(current_model, test_data, batch_size,
                                   all_relations, device)
                    for test_data in current_test_data]
