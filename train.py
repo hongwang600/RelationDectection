@@ -119,7 +119,7 @@ def sample_given_pro_bert(sample_pro_set, num_samples, bert_rel_feature,
     if given_pro is not None:
         return np.random.choice(samples, min(num_samples, len(samples)),
                                        False, given_pro)
-    #return random.sample(samples, min(len(samples), num_samples))
+    return random.sample(samples, min(len(samples), num_samples))
     sample_bert_embeds = torch.from_numpy(np.asarray(
         [bert_rel_feature[i] for i in samples])).to(device)
     seed_rel_embeds = torch.from_numpy(np.asarray(
@@ -217,7 +217,7 @@ def sample_constrains(rel_samples, relations_frequences, rel_embeds,
         ret_samples.append(random.sample(rel_samples[rel_index],
                                          min(data_per_constrain,
                                              len(rel_samples[rel_index]))))
-    #return ret_samples
+    return ret_samples
     #all_cands = list(rel_ques_cand.keys())[:]
     for this_memory in ret_samples:
         for i, sample in enumerate(this_memory):

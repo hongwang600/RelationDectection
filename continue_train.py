@@ -419,7 +419,7 @@ def run_sequence(training_data, testing_data, valid_data, all_relations,
         updata_saved_relations(current_train_data, rel_samples,
                                relations_frequences_all, rel_acc_diff, acc_diff)
         updata_full_saved_relations(splited_training_data[i], full_rel_samples)
-        rel_samples = rm_unseen_rels(full_rel_samples, seen_relations)
+        #rel_samples = rm_unseen_rels(full_rel_samples, seen_relations)
         #save_rel_embeds(current_model, all_seen_rels, all_relations,
         #                'model_embed/embed'+str(i)+'.txt')
         #to_save_data = filter_data(current_train_data, current_model,
