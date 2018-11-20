@@ -13,6 +13,8 @@ from utils import process_testing_samples, process_samples, ranking_sequence,\
     copy_grad_data, get_grad_params
 from evaluate import evaluate_model
 from config import CONFIG as conf
+from sklearn.cluster import KMeans
+from sklearn import preprocessing  # to normalise existing X
 #from continue_train import sample_constrains
 
 embedding_dim = conf['embedding_dim']
@@ -51,7 +53,11 @@ def sample_given_simi(similarity, num_sample):
 def select_n_centers(sample_bert_embeds, start_seed_rel, num_centers =
                      num_constrain):
     sel_index = []
-    seed_rel_embeds = start_seed_rel
+    #seed_rel_embeds = start_seed_rel
+    seed_rel_embeds = \
+        torch.from_numpy(preprocessing.normalize(start_seed_rel)).to(device)
+    sample_bert_embeds = \
+        torch.from_numpy(preprocessing.normalize(sample_bert_embeds)).to(device)
     cons_to_sel = min(len(sample_bert_embeds), num_centers)
     for i in range(cons_to_sel):
         #dis = nn.CosineSimilarity(dim=1)
@@ -84,18 +90,54 @@ def mix_random_center(pro, num_seed, sample_bert_embeds):
     #print(sel_seed_indexs, sel_index, len(pro))
     return list(sel_seed_indexs) + sel_index
 
+def select_data(embeds, samples, num_sel_data):
+    #que_embeds = get_que_embed(model, samples, all_relations)
+    #print(que_embeds[:5])
+    embeds_Norm = preprocessing.normalize(embeds)
+    num_clusters = min(num_sel_data, len(samples))
+    distances = KMeans(n_clusters=num_clusters,
+                    random_state=0).fit_transform(embeds_Norm)
+    selected_samples = []
+    for i in range(num_clusters):
+        sel_index = np.argmin(distances[:,i])
+        selected_samples.append(samples[sel_index])
+    return selected_samples
+
+def kmeans_pro(embeds, samples, num_sel_data):
+    #que_embeds = get_que_embed(model, samples, all_relations)
+    #print(que_embeds[:5])
+    embeds_Norm = preprocessing.normalize(embeds)
+    num_clusters = min(num_sel_data, len(samples))
+    distances = KMeans(n_clusters=num_clusters,
+                    random_state=0).fit_transform(embeds_Norm)
+    rel_dis = 1/np.exp(np.min(distances, 1))
+    return rel_dis/sum(rel_dis)
+
 def sample_given_pro_bert(sample_pro_set, num_samples, bert_rel_feature,
-                          seed_rels, rel_acc_diff):
+                          seed_rels, rel_acc_diff, given_pro):
     samples = list(sample_pro_set.keys())
+    if given_pro is not None:
+        return np.random.choice(samples, min(num_samples, len(samples)),
+                                       False, given_pro)
     #return random.sample(samples, min(len(samples), num_samples))
     sample_bert_embeds = torch.from_numpy(np.asarray(
-        [bert_rel_feature[i] for i in samples]))
+        [bert_rel_feature[i] for i in samples])).to(device)
     seed_rel_embeds = torch.from_numpy(np.asarray(
-        [bert_rel_feature[i] for i in seed_rels]))
+        [bert_rel_feature[i] for i in seed_rels])).to(device)
+    sample_embeds_np = sample_bert_embeds.cpu().double().numpy()
+    #return select_data(sample_embeds_np, samples, num_constrain)
+    '''
+    seed_center = random.sample(list(range(len(samples))), 1)[0]
+    seed_center_embed = sample_bert_embeds[seed_center]
+    sel_rel, sel_index = select_n_centers(sample_bert_embeds,
+                                          seed_center_embed.view(1,-1))
+    sel_index += [seed_center]
     #sel_rel, sel_index = select_n_centers(sample_bert_embeds, seed_rel_embeds)
     #print(sel_index)
-    #return [samples[i] for i in sel_index]
+    return [samples[i] for i in sel_index]
+    '''
     #print(sample_bert_embeds.size(), seed_rel_embeds.size())
+    '''
     dis = nn.CosineSimilarity(dim=1)
     #dis = torch.nn.PairwiseDistance()
     sample_similarity = []
@@ -115,6 +157,7 @@ def sample_given_pro_bert(sample_pro_set, num_samples, bert_rel_feature,
     #sample_similarity = 1 - sample_similarity
     for i in range(len(sample_similarity)):
         sample_similarity[i] = max(0.001, sample_similarity[i])
+    '''
     #print(sample_similarity)
     #sample_similarity = 1/sample_similarity
     #print(sample_similarity)
@@ -125,9 +168,9 @@ def sample_given_pro_bert(sample_pro_set, num_samples, bert_rel_feature,
     fre = np.array(list(sample_pro_set.values()))
     #fre = np.multiply(np.array(list(sample_pro_set.values())),
     #                  np.array(list(rel_acc_diff.values())))
-    #pro = fre/float(sum(fre))
+    pro = fre/float(sum(fre))
     #sample_similarity = np.exp(sample_similarity)
-    pro = sample_similarity/sum(sample_similarity)
+    #pro = sample_similarity/sum(sample_similarity)
     #print('fre', fre/float(sum(fre)))
     #print('simi', pro)
     #sel_index = mix_random_center(pro, num_constrain//2, sample_bert_embeds)
@@ -140,11 +183,34 @@ def sample_given_pro_bert(sample_pro_set, num_samples, bert_rel_feature,
     #print(selected_sample)
     return selected_sample
 
-def sample_constrains(rel_samples, relations_frequences, bert_rel_feature,
-                      seed_rels, rel_ques_cand, rel_acc_diff):
+def get_nearest_cand(pos_rel, seen_rels, rel_embeds, cand_size):
+    samples = [rel for rel in seen_rels if rel!=pos_rel]
+    #return random.sample(samples, min(len(samples), num_samples))
+    sample_bert_embeds = torch.from_numpy(np.asarray(
+        [rel_embeds[i] for i in samples])).to(device)
+    seed_rel_embeds = torch.from_numpy(np.asarray(
+        [rel_embeds[pos_rel]])).to(device)
+    #dis = torch.nn.PairwiseDistance()
+    dis = nn.CosineSimilarity(dim=1)
+    sample_similarity = dis(sample_bert_embeds, seed_rel_embeds.view(1,-1))
+    sample_similarity = sample_similarity.cpu().double().numpy()
+    sel_index = sample_similarity.argsort()[
+        -(min(cand_size, len(samples))):]
+    #print(sample_similarity)
+    #print(sel_index)
+    return [samples[i] for i in sel_index]
+    #print(sample_similarity.size())
+    #print(sample_similarity)
+    #sample_similarity = sample_similarity.mean(0).cpu().double().numpy()
+    #sample_similarity, _ = sample_similarity.max(0)
+    #sample_similarity = sample_similarity.cpu().double().numpy()
+
+def sample_constrains(rel_samples, relations_frequences, rel_embeds,
+                      seed_rels, rel_ques_cand, rel_acc_diff, given_pro,
+                      all_seen_rels):
     selected_rels = sample_given_pro_bert(relations_frequences, num_constrain,
-                                          bert_rel_feature, seed_rels,
-                                          rel_acc_diff)
+                                          rel_embeds, seed_rels,
+                                          rel_acc_diff, given_pro)
     ret_samples = []
     for i in range(min(num_constrain, len(selected_rels))):
         rel_index = selected_rels[i]
@@ -152,11 +218,20 @@ def sample_constrains(rel_samples, relations_frequences, bert_rel_feature,
                                          min(data_per_constrain,
                                              len(rel_samples[rel_index]))))
     return ret_samples
-    all_cands = list(rel_ques_cand.keys())[:]
+    #all_cands = list(rel_ques_cand.keys())[:]
     for this_memory in ret_samples:
         for i, sample in enumerate(this_memory):
-            this_memory[i] = [sample[0], random.sample(
-                all_cands, min(len(all_cands), num_cands)), sample[2]]
+            cand_set = get_nearest_cand(sample[0], all_seen_rels, rel_embeds,
+                                        100)
+                                        #num_cands)
+                                        #len(all_seen_rels)//4)
+            this_memory[i] = [sample[0],
+                              random.sample(cand_set,
+                                            min(len(cand_set),num_cands)),
+                              sample[2]]
+            #this_memory[i] = [sample[0], random.sample(
+            #    all_seen_rels, min(len(all_seen_rels), num_cands)), sample[2]]
+                #cand_set, min(len(cand_set), num_cands)), sample[2]]
     return ret_samples
 
 def feed_samples(model, samples, loss_function, all_relations, device):
@@ -290,7 +365,7 @@ def check_constrain(memory_grads, sample_grad):
 
 def train(training_data, valid_data, vocabulary, embedding_dim, hidden_dim,
           device, batch_size, lr, model_path, embedding, all_relations,
-          model=None, epoch=100, memory_data=[], loss_margin=2.0,
+          model=None, epoch=100, memory_data=[], loss_margin=0.5,
           past_fisher=None, rel_samples=[], relation_frequences=[],
           rel_embeds=None, rel_ques_cand=None, rel_acc_diff=None,
           all_seen_rels=None, update_rel_embed=None):
@@ -302,7 +377,8 @@ def train(training_data, valid_data, vocabulary, embedding_dim, hidden_dim,
     model = model.to(device)
     optimizer = optim.Adam(model.parameters(), lr=lr)
     best_acc = 0
-    acc_pre=evaluate_model(model, valid_data, batch_size, all_relations, device)
+    #acc_pre=evaluate_model(model, valid_data, batch_size, all_relations, device)
+    given_pro = None
     for epoch_i in range(epoch):
         #print('epoch', epoch_i)
         #training_data = training_data[0:100]
@@ -323,7 +399,8 @@ def train(training_data, valid_data, vocabulary, embedding_dim, hidden_dim,
                                                 relation_frequences,
                                                 rel_embeds,
                                                 seed_rels, rel_ques_cand,
-                                                rel_acc_diff)
+                                                rel_acc_diff,
+                                                given_pro, all_seen_rels)
             memory_data_grads = get_grads_memory_data(model, memory_data,
                                                       loss_function,
                                                       all_relations,
@@ -348,8 +425,16 @@ def train(training_data, valid_data, vocabulary, embedding_dim, hidden_dim,
                 grad_dims = [param.data.numel() for param in grad_params]
                 overwrite_grad(grad_params, sample_grad, grad_dims)
             optimizer.step()
-            if(epoch_i%5==0):
+            if(epoch_i%5==0) and len(relation_frequences)>0:
                 update_rel_embed(model, all_seen_rels, all_relations, rel_embeds)
+                samples = list(relation_frequences.keys())
+                #return random.sample(samples, min(len(samples), num_samples))
+                sample_embeds = torch.from_numpy(np.asarray(
+                    [rel_embeds[i] for i in samples]))
+                #seed_rel_embeds = torch.from_numpy(np.asarray(
+                #    [rel_embeds[i] for i in seed_rels])).to(device)
+                sample_embeds_np = sample_embeds.cpu().double().numpy()
+                #given_pro = kmeans_pro(sample_embeds_np, samples, num_constrain)
             del scores
             del loss
             '''
@@ -359,8 +444,9 @@ def train(training_data, valid_data, vocabulary, embedding_dim, hidden_dim,
     best_model = torch.load(model_path)
     return best_model
     '''
-    acc_aft=evaluate_model(model, valid_data, batch_size, all_relations, device)
-    return model, max(0, acc_aft-acc_pre)
+    #acc_aft=evaluate_model(model, valid_data, batch_size, all_relations, device)
+    #return model, max(0, acc_aft-acc_pre)
+    return model, 0
 
 if __name__ == '__main__':
     training_data, testing_data, valid_data, all_relations, vocabulary, \

@@ -53,6 +53,13 @@ def remove_unseen_relation(dataset, seen_relations):
             cleaned_data.append([data[0], neg_cands, data[2]])
     return cleaned_data
 
+def rm_unseen_rels(full_rel_samples, seen_relations):
+    ret_rel_samples = {}
+    for rel in full_rel_samples:
+        ret_rel_samples[rel] = remove_unseen_relation(full_rel_samples[rel],
+                                                       seen_relations)
+    return ret_rel_samples
+
 def print_list(result):
     for num in result:
         sys.stdout.write('%.3f, ' %num)
@@ -99,6 +106,14 @@ def updata_saved_relations(current_train_data, rel_samples,
         #elif len(rel_samples[pos_index]) < 10:
             relations_frequences[pos_index] = \
                 max(50, relations_frequences[pos_index]+1)
+            rel_samples[pos_index].append(sample)
+
+def updata_full_saved_relations(current_train_data, rel_samples):
+    for sample in current_train_data:
+        pos_index = sample[0]
+        if pos_index not in rel_samples:
+            rel_samples[pos_index] = [sample]
+        else:
             rel_samples[pos_index].append(sample)
 
 def walk_n_steps(rel_ques_cand, num_steps, rel):
@@ -296,6 +311,32 @@ def update_rel_embed(model, all_seen_rels, all_relations, rel_embeds):
             for i, rel in enumerate(seen_rels_batch):
                 rel_embeds[rel] = new_rel_embeds[i].cpu().numpy()
 
+def save_rel_embeds(model, all_seen_rels, all_relations, file_name):
+    rel_embeds = {}
+    if model is not None and len(all_seen_rels) > 0:
+        for i in range((len(all_seen_rels)-1)//batch_size+1):
+            seen_rels_batch = all_seen_rels[i*batch_size:(i+1)*batch_size]
+            relations = [torch.tensor(all_relations[i],
+                                          dtype=torch.long).to(device)
+                             for i in seen_rels_batch]
+            model.init_hidden(device, len(relations))
+            ranked_relations, reverse_relation_indexs = \
+                ranking_sequence(relations)
+            relation_lengths = [len(relation) for relation in ranked_relations]
+            #print(ranked_relations)
+            pad_relations = torch.nn.utils.rnn.pad_sequence(ranked_relations)
+            new_rel_embeds = model.compute_que_embed(pad_relations, relation_lengths,
+                                                 reverse_relation_indexs)
+            for i, rel in enumerate(seen_rels_batch):
+                rel_embeds[rel] = new_rel_embeds[i].cpu().numpy()
+        rels = list(rel_embeds.keys())
+        values = rel_embeds.values()
+        with open(file_name, 'w') as writer:
+            writer.write(str(rels)+'\n')
+            for embed in values:
+                to_write = [round(x, 6) for x in embed]
+                writer.write(str(to_write)+'\n')
+
 def run_sequence(training_data, testing_data, valid_data, all_relations,
                  vocabulary,embedding, cluster_labels, num_clusters,
                  shuffle_index, rel_embeds):
@@ -322,10 +363,12 @@ def run_sequence(training_data, testing_data, valid_data, all_relations,
     relations_frequences_task = []
     rel_ques_cand = {}
     rel_samples = {}
+    full_rel_samples = {}
     rel_acc_diff = {}
     all_seen_rels = []
     past_fisher = None
     num_past_data = 0
+    all_used_rels = list(rel_embeds.keys())
     for i in range(num_clusters):
         seen_relations += [data[0] for data in splited_training_data[i] if
                           data[0] not in seen_relations]
@@ -375,6 +418,10 @@ def run_sequence(training_data, testing_data, valid_data, all_relations,
                                         all_seen_rels, update_rel_embed)
         updata_saved_relations(current_train_data, rel_samples,
                                relations_frequences_all, rel_acc_diff, acc_diff)
+        updata_full_saved_relations(splited_training_data[i], full_rel_samples)
+        rel_samples = rm_unseen_rels(full_rel_samples, seen_relations)
+        #save_rel_embeds(current_model, all_seen_rels, all_relations,
+        #                'model_embed/embed'+str(i)+'.txt')
         #to_save_data = filter_data(current_train_data, current_model,
         #                           all_relations)
         #enlarge_rel_graph(current_train_data, None,
