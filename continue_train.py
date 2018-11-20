@@ -89,7 +89,7 @@ def run_sequence(training_data, testing_data, valid_data, all_relations,
         #    all_seen_data, min(len(all_seen_data), len(current_train_data)))
         to_train_data = current_train_data + all_seen_data
         #random.shuffle(all_seen_data)
-        #random.shuffle(to_train_data)
+        random.shuffle(to_train_data)
         current_model = train(to_train_data, current_valid_data,
                               vocabulary, embedding_dim, hidden_dim,
                               device, batch_size, lr, model_path,
