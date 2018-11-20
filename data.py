@@ -1,5 +1,6 @@
 import numpy as np
 import wordninja
+import re
 from config import CONFIG as conf
 
 relation_file = conf['relation_file']
@@ -42,20 +43,24 @@ def read_samples(sample_file):
     with open(sample_file) as file_in:
         for line in file_in:
             items = line.split('\t')
-            relation_ix = int(items[0])
-            #print(items[1].split())
-            if items[1] != 'noNegativeAnswer':
-                candidate_ixs = [int(ix) for ix in items[1].split()]
-                question = remove_return_sym(items[2]).split()
-                sample_data.append([relation_ix, candidate_ixs, question])
+            if(len(items[0])>0):
+                relation_ix = int(items[0])
+                #print(items[1].split())
+                if items[1] != 'noNegativeAnswer':
+                    candidate_ixs = [int(ix) for ix in items[1].split()]
+                    question = remove_return_sym(items[2]).split()
+                    sample_data.append([relation_ix, candidate_ixs, question])
     return sample_data
 
 # concat words by using '_'
 def concat_words(words):
-    return_str = words[0]
-    for word in words[1:]:
-        return_str += '_' + word
-    return return_str
+    if len(words) > 0:
+        return_str = words[0]
+        for word in words[1:]:
+            return_str += '_' + word
+        return return_str
+    else:
+        return ''
 
 # split the relation into words together with relation name, eg. birth_place_of
 # will be turned into [birth, place, of, birth_place_of]
@@ -66,7 +71,8 @@ def split_relation_into_words(relation, glove_vocabulary):
     # "base". We only choose the last three parts
     for word_seq in relation.split("/")[-3:]:
         new_word_list = []
-        for word in word_seq.split("_"):
+        #for word in word_seq.split("_"):
+        for word in re.findall(r"[\w']+", word_seq):
             #print(word)
             if word not in glove_vocabulary:
                 new_word_list += wordninja.split(word)
@@ -137,6 +143,10 @@ def transform_questions(sample_list, vocabulary):
     for sample in sample_list:
         sample[2] = words2indexs(sample[2], vocabulary)
     return sample_list
+
+def read_origin_relation():
+    relation_list = read_relations(relation_file)
+    return relation_list
 
 # generate the training, valid, test data
 #def gen_data(relation_file, training_file, test_file, valid_file, glove_file):
