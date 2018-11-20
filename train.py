@@ -126,7 +126,7 @@ def sample_given_pro_bert(sample_pro_set, num_samples, bert_rel_feature,
         [bert_rel_feature[i] for i in seed_rels])).to(device)
     sample_embeds_np = sample_bert_embeds.cpu().double().numpy()
     #return select_data(sample_embeds_np, samples, num_constrain)
-    '''
+    #'''
     seed_center = random.sample(list(range(len(samples))), 1)[0]
     seed_center_embed = sample_bert_embeds[seed_center]
     sel_rel, sel_index = select_n_centers(sample_bert_embeds,
@@ -135,7 +135,7 @@ def sample_given_pro_bert(sample_pro_set, num_samples, bert_rel_feature,
     #sel_rel, sel_index = select_n_centers(sample_bert_embeds, seed_rel_embeds)
     #print(sel_index)
     return [samples[i] for i in sel_index]
-    '''
+    #'''
     #print(sample_bert_embeds.size(), seed_rel_embeds.size())
     '''
     dis = nn.CosineSimilarity(dim=1)
@@ -217,12 +217,12 @@ def sample_constrains(rel_samples, relations_frequences, rel_embeds,
         ret_samples.append(random.sample(rel_samples[rel_index],
                                          min(data_per_constrain,
                                              len(rel_samples[rel_index]))))
-    return ret_samples
+    #return ret_samples
     #all_cands = list(rel_ques_cand.keys())[:]
     for this_memory in ret_samples:
         for i, sample in enumerate(this_memory):
             cand_set = get_nearest_cand(sample[0], all_seen_rels, rel_embeds,
-                                        100)
+                                        40)
                                         #num_cands)
                                         #len(all_seen_rels)//4)
             this_memory[i] = [sample[0],
