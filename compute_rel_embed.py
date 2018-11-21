@@ -29,7 +29,7 @@ def read_relation_name(file_name):
     ret_names = []
     with open(file_name) as file_in:
         for line in file_in:
-            ret_names.append(line[:-1])
+            ret_names.append(line[:-2])
     return ret_names
 
 def read_embedding(file_name):
@@ -59,6 +59,7 @@ def compute_rel_embed(training_data, relation_names=None):
     rel_embed = {}
     for rel in rel_indexs:
         que_rel_embeds = [que_rel_embeddings[i] for i in rel_indexs[rel]]
+        #rel_embed[rel] = np.max(que_rel_embeds, 0)
         rel_embed[rel] = np.mean(que_rel_embeds, 0)
     rel_ids = rel_embed.keys()
     if relation_names is not None:
