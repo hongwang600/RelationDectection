@@ -21,6 +21,13 @@ def cluster_data(num_clusters=20):
     for i in range(len(relation_index)):
         cluster_index[relation_index[i]] = labels[i]
         rel_embed[relation_index[i]] = relation_embeddings[i]
+    rel_index = np.asarray(list(relation_index))
+    '''
+    splited_index = np.split(rel_index, num_clusters)
+    for i, this_cluster in enumerate(splited_index):
+        for rel in this_cluster:
+            cluster_index[rel] = i
+            '''
     return cluster_index, rel_embed
 
 if __name__ == '__main__':

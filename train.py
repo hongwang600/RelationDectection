@@ -195,7 +195,8 @@ def get_nearest_cand(pos_rel, seen_rels, rel_embeds, cand_size):
     sample_similarity = dis(sample_bert_embeds, seed_rel_embeds.view(1,-1))
     sample_similarity = sample_similarity.cpu().double().numpy()
     sel_index = sample_similarity.argsort()[
-        -(min(cand_size, len(samples))):]
+        -(min(5*cand_size, len(samples))):]
+    sel_index = random.sample(sel_index, min(cand_size, len(sel_index)))
     #print(sample_similarity)
     #print(sel_index)
     return [samples[i] for i in sel_index]
@@ -204,6 +205,15 @@ def get_nearest_cand(pos_rel, seen_rels, rel_embeds, cand_size):
     #sample_similarity = sample_similarity.mean(0).cpu().double().numpy()
     #sample_similarity, _ = sample_similarity.max(0)
     #sample_similarity = sample_similarity.cpu().double().numpy()
+
+def update_rel_cands(memory_data, all_seen_cands, rel_embeds):
+    if len(memory_data) >0:
+        for this_memory in memory_data:
+            for sample in this_memory:
+                #sample[1] = random.sample(all_seen_cands,
+                #                        min(num_cands,len(all_seen_cands)))
+                sample[1] = get_nearest_cand(sample[0], all_seen_cands,
+                                                      rel_embeds, num_cands)
 
 def sample_constrains(rel_samples, relations_frequences, rel_embeds,
                       seed_rels, rel_ques_cand, rel_acc_diff, given_pro,
@@ -222,7 +232,7 @@ def sample_constrains(rel_samples, relations_frequences, rel_embeds,
     for this_memory in ret_samples:
         for i, sample in enumerate(this_memory):
             cand_set = get_nearest_cand(sample[0], all_seen_rels, rel_embeds,
-                                        40)
+                                        num_cands)
                                         #num_cands)
                                         #len(all_seen_rels)//4)
             this_memory[i] = [sample[0],
@@ -438,6 +448,9 @@ def train(training_data, valid_data, vocabulary, embedding_dim, hidden_dim,
                 #    [rel_embeds[i] for i in seed_rels])).to(device)
                 sample_embeds_np = sample_embeds.cpu().double().numpy()
                 #given_pro = kmeans_pro(sample_embeds_np, samples, num_constrain)
+            if epoch_i%5==0 and False:
+                update_rel_embed(model, all_seen_rels, all_relations, rel_embeds)
+                update_rel_cands(memory_data, all_seen_rels, rel_embeds)
             del scores
             del loss
             '''

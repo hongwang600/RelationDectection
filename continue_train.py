@@ -7,6 +7,7 @@ import sys
 import random
 import time
 from sklearn.cluster import KMeans
+from sklearn import preprocessing  # to normalise existing X
 
 from data import gen_data
 from model import SimilarityModel
@@ -16,7 +17,7 @@ from evaluate import evaluate_model, compute_diff_scores
 from data_partition import cluster_data
 from config import CONFIG as conf
 from train import train, sample_constrains, sample_given_pro, get_nearest_cand,\
-    select_data_kmeans
+    select_data_kmeans, update_rel_cands, select_n_centers
 from compute_rel_embed import compute_rel_embed
 
 embedding_dim = conf['embedding_dim']
@@ -339,17 +340,6 @@ def save_rel_embeds(model, all_seen_rels, all_relations, file_name):
                 to_write = [round(x, 6) for x in embed]
                 writer.write(str(to_write)+'\n')
 
-def update_rel_cands(memory_data, all_seen_cands, rel_embeds):
-    if len(memory_data) >0:
-        for this_memory in memory_data:
-            for sample in this_memory:
-                sample = [sample[0],
-                          random.sample(all_seen_cands,
-                                        min(num_cands,len(all_seen_cands))),
-                          sample[2]]
-                #sample = [sample[0], get_nearest_cand(sample[0], all_seen_cands,
-                #                                      rel_embeds, num_cands)]
-
 def get_que_embed(model, sample_list, all_relations):
     ret_que_embeds = []
     for i in range((len(sample_list)-1)//batch_size+1):
@@ -372,6 +362,7 @@ def get_que_embed(model, sample_list, all_relations):
 
 def select_data(model, samples, num_sel_data, all_relations):
     que_embeds = get_que_embed(model, samples, all_relations)
+    que_embeds = preprocessing.normalize(que_embeds)
     #print(que_embeds[:5])
     num_clusters = min(num_sel_data, len(samples))
     distances = KMeans(n_clusters=num_clusters,
@@ -381,6 +372,16 @@ def select_data(model, samples, num_sel_data, all_relations):
         sel_index = np.argmin(distances[:,i])
         selected_samples.append(samples[sel_index])
     return selected_samples
+
+def select_data_n_center(model, samples, num_sel_data, all_relations):
+    que_embeds = torch.from_numpy(
+        get_que_embed(model, samples, all_relations))
+    seed_center = random.sample(list(range(len(samples))), 1)[0]
+    seed_center_embed = que_embeds[seed_center]
+    sel_rel, sel_index = select_n_centers(que_embeds,
+                                          seed_center_embed.view(1,-1))
+    sel_index += [seed_center]
+    return [samples[i] for i in sel_index]
 
 def run_sequence(training_data, testing_data, valid_data, all_relations,
                  vocabulary,embedding, cluster_labels, num_clusters,
@@ -460,7 +461,7 @@ def run_sequence(training_data, testing_data, valid_data, all_relations,
                               embedding, all_relations, current_model, epoch,
                               memory_data, loss_margin, past_fisher,
                               rel_samples, relations_frequences_all,
-                              rel_embeds, rel_ques_cand, rel_acc_diff,
+                           rel_embeds, rel_ques_cand, rel_acc_diff,
                                         all_seen_rels, update_rel_embed)
         #updata_saved_relations(current_train_data, rel_samples,
         #                       relations_frequences_all, rel_acc_diff, acc_diff)
@@ -482,6 +483,10 @@ def run_sequence(training_data, testing_data, valid_data, all_relations,
         #memory_data.append(current_train_data[-task_memory_size:])
         memory_data.append(select_data(current_model, current_train_data,
                                        task_memory_size, all_relations))
+        #memory_data.append(select_data_n_center(current_model,
+        #                                        current_train_data,
+        #                                        task_memory_size,
+        #                                        all_relations))
         results = [evaluate_model(current_model, test_data, batch_size,
                                   all_relations, device)
                    for test_data in current_test_data]
