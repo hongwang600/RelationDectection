@@ -103,7 +103,7 @@ class SimilarityModel(nn.Module):
         relation_packed = \
             torch.nn.utils.rnn.pack_padded_sequence(relation_embeds,
                                                     relation_lengths)
-        relation_embedding = self.sentence_biLstm(relation_packed)
+        relation_embedding = self.relation_biLstm(relation_packed)
         relation_embedding = relation_embedding[reverse_relation_indexs]
         return relation_embedding.detach()
 

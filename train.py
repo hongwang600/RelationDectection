@@ -7,7 +7,7 @@ import quadprog
 import random
 import time
 
-from data import gen_data
+from data import gen_data, read_origin_relation
 from model import SimilarityModel
 from utils import process_testing_samples, process_samples, ranking_sequence,\
     copy_grad_data, get_grad_params
@@ -28,6 +28,7 @@ num_constrain = conf['num_constrain']
 data_per_constrain = conf['data_per_constrain']
 num_cands = conf['num_cands']
 random.seed(100)
+origin_relation_names = read_origin_relation()
 
 def sample_given_pro(sample_pro_set, num_samples):
     samples = list(sample_pro_set.keys())
@@ -119,7 +120,7 @@ def sample_given_pro_bert(sample_pro_set, num_samples, bert_rel_feature,
     if given_pro is not None:
         return np.random.choice(samples, min(num_samples, len(samples)),
                                        False, given_pro)
-    return random.sample(samples, min(len(samples), num_samples))
+    #return random.sample(samples, min(len(samples), num_samples))
     sample_bert_embeds = torch.from_numpy(np.asarray(
         [bert_rel_feature[i] for i in samples])).to(device)
     seed_rel_embeds = torch.from_numpy(np.asarray(
@@ -197,6 +198,9 @@ def get_nearest_cand(pos_rel, seen_rels, rel_embeds, cand_size):
     sel_index = sample_similarity.argsort()[
         -(min(5*cand_size, len(samples))):]
     sel_index = random.sample(sel_index, min(cand_size, len(sel_index)))
+    print('pos: ', origin_relation_names[pos_rel])
+    for i in sel_index:
+        print(origin_relation_names[samples[i]])
     #print(sample_similarity)
     #print(sel_index)
     return [samples[i] for i in sel_index]
@@ -212,8 +216,10 @@ def update_rel_cands(memory_data, all_seen_cands, rel_embeds):
             for sample in this_memory:
                 #sample[1] = random.sample(all_seen_cands,
                 #                        min(num_cands,len(all_seen_cands)))
+                #print('random', sample[1])
                 sample[1] = get_nearest_cand(sample[0], all_seen_cands,
                                                       rel_embeds, num_cands)
+                #print('near', sample[1])
 
 def sample_constrains(rel_samples, relations_frequences, rel_embeds,
                       seed_rels, rel_ques_cand, rel_acc_diff, given_pro,
@@ -227,7 +233,7 @@ def sample_constrains(rel_samples, relations_frequences, rel_embeds,
         ret_samples.append(random.sample(rel_samples[rel_index],
                                          min(data_per_constrain,
                                              len(rel_samples[rel_index]))))
-    return ret_samples
+    #return ret_samples
     #all_cands = list(rel_ques_cand.keys())[:]
     for this_memory in ret_samples:
         for i, sample in enumerate(this_memory):
@@ -297,6 +303,7 @@ def project2cone2(gradient, memories, margin=0.5, eps=1e-3):
     """
     #start_time = time.time()
     memories_np = memories.cpu().double().numpy()
+    '''
     memories_np = memories_np[~np.all(memories_np == 0, axis=1)]
     gradient_np = gradient.cpu().contiguous().view(-1).double().numpy()
     #print(memories_np.shape)
@@ -312,6 +319,10 @@ def project2cone2(gradient, memories, margin=0.5, eps=1e-3):
     v = quadprog.solve_qp(P, q, G, h)[0]
     #print(v)
     x = np.dot(v, memories_np) + gradient_np
+    '''
+    gradient_np = gradient.cpu().contiguous().view(1, -1).double().numpy()
+    all_gradient = np.concatenate([memories_np, gradient_np])
+    x = np.mean(all_gradient, 0)
     gradient.copy_(torch.Tensor(x).view(-1))
     #end_time = time.time()
     #print('proj time:', end_time-start_time)
@@ -398,11 +409,11 @@ def train(training_data, valid_data, vocabulary, embedding_dim, hidden_dim,
             for item in samples:
                 if item[0] not in seed_rels:
                     seed_rels.append(item[0])
-                    '''
+                '''
                 for item_cand in item[1]:
                     if item_cand not in seed_rels:
                         seed_rels.append(item_cand)
-                        '''
+                '''
 
             if len(rel_samples) > 0:
                 memory_data = sample_constrains(rel_samples,
@@ -426,7 +437,8 @@ def train(training_data, valid_data, vocabulary, embedding_dim, hidden_dim,
             #print('forward time:', end_time - start_time)
             sample_grad = copy_grad_data(model)
             if len(memory_data_grads) > 0:
-                if not check_constrain(memory_data_grads, sample_grad):
+                #if not check_constrain(memory_data_grads, sample_grad):
+                if True:
                     project2cone2(sample_grad, memory_data_grads)
                     if past_fisher is None:
                         grad_params = get_grad_params(model)
@@ -438,7 +450,7 @@ def train(training_data, valid_data, vocabulary, embedding_dim, hidden_dim,
                 grad_dims = [param.data.numel() for param in grad_params]
                 overwrite_grad(grad_params, sample_grad, grad_dims)
             optimizer.step()
-            if(epoch_i%5==0) and len(relation_frequences)>0:
+            if(epoch_i%5==0) and len(relation_frequences)>0 and False:
                 update_rel_embed(model, all_seen_rels, all_relations, rel_embeds)
                 samples = list(relation_frequences.keys())
                 #return random.sample(samples, min(len(samples), num_samples))
@@ -450,7 +462,7 @@ def train(training_data, valid_data, vocabulary, embedding_dim, hidden_dim,
                 #given_pro = kmeans_pro(sample_embeds_np, samples, num_constrain)
             if epoch_i%5==0 and False:
                 update_rel_embed(model, all_seen_rels, all_relations, rel_embeds)
-                update_rel_cands(memory_data, all_seen_rels, rel_embeds)
+                #update_rel_cands(memory_data, all_seen_rels, rel_embeds)
             del scores
             del loss
             '''

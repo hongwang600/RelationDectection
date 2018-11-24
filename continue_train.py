@@ -309,7 +309,7 @@ def update_rel_embed(model, all_seen_rels, all_relations, rel_embeds):
             relation_lengths = [len(relation) for relation in ranked_relations]
             #print(ranked_relations)
             pad_relations = torch.nn.utils.rnn.pad_sequence(ranked_relations)
-            new_rel_embeds = model.compute_que_embed(pad_relations, relation_lengths,
+            new_rel_embeds = model.compute_rel_embed(pad_relations, relation_lengths,
                                                  reverse_relation_indexs)
             for i, rel in enumerate(seen_rels_batch):
                 rel_embeds[rel] = new_rel_embeds[i].cpu().numpy()
@@ -328,7 +328,7 @@ def save_rel_embeds(model, all_seen_rels, all_relations, file_name):
             relation_lengths = [len(relation) for relation in ranked_relations]
             #print(ranked_relations)
             pad_relations = torch.nn.utils.rnn.pad_sequence(ranked_relations)
-            new_rel_embeds = model.compute_que_embed(pad_relations, relation_lengths,
+            new_rel_embeds = model.compute_rel_embed(pad_relations, relation_lengths,
                                                  reverse_relation_indexs)
             for i, rel in enumerate(seen_rels_batch):
                 rel_embeds[rel] = new_rel_embeds[i].cpu().numpy()
