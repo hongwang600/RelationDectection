@@ -59,6 +59,7 @@ def remove_unseen_relation(dataset, seen_relations):
             cleaned_data.append([data[0], neg_cands, data[2]])
         else:
             cleaned_data.append([data[0], data[1][-2:], data[2]])
+            #pass
     return cleaned_data
 
 def rm_unseen_rels(full_rel_samples, seen_relations):
@@ -471,8 +472,8 @@ def run_sequence(training_data, testing_data, valid_data, all_relations,
                               rel_samples, relations_frequences_all,
                            rel_embeds, rel_ques_cand, rel_acc_diff,
                                         all_seen_rels, update_rel_embed)
-        #updata_saved_relations(current_train_data, rel_samples,
-        #                       relations_frequences_all, rel_acc_diff, acc_diff)
+        updata_saved_relations(current_train_data, rel_samples,
+                               relations_frequences_all, rel_acc_diff, acc_diff)
         #updata_full_saved_relations(splited_training_data[i], full_rel_samples)
         #rel_samples = rm_unseen_rels(full_rel_samples, seen_relations)
         #save_rel_embeds(current_model, all_seen_rels, all_relations,
@@ -489,8 +490,8 @@ def run_sequence(training_data, testing_data, valid_data, all_relations,
                                                    num_past_data)
                                                    '''
         #memory_data.append(current_train_data[-task_memory_size:])
-        memory_data.append(select_data(current_model, current_train_data,
-                                       task_memory_size, all_relations))
+        #memory_data.append(select_data(current_model, current_train_data,
+        #                               task_memory_size, all_relations))
         #memory_data.append(select_data_n_center(current_model,
         #                                        current_train_data,
         #                                        task_memory_size,

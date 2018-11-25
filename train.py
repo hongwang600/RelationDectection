@@ -120,7 +120,7 @@ def sample_given_pro_bert(sample_pro_set, num_samples, bert_rel_feature,
     if given_pro is not None:
         return np.random.choice(samples, min(num_samples, len(samples)),
                                        False, given_pro)
-    #return random.sample(samples, min(len(samples), num_samples))
+    return random.sample(samples, min(len(samples), num_samples))
     sample_bert_embeds = torch.from_numpy(np.asarray(
         [bert_rel_feature[i] for i in samples])).to(device)
     seed_rel_embeds = torch.from_numpy(np.asarray(
@@ -216,11 +216,11 @@ def update_rel_cands(memory_data, all_seen_cands, rel_embeds):
     if len(memory_data) >0:
         for this_memory in memory_data:
             for sample in this_memory:
-                sample[1] = random.sample(all_seen_cands,
-                                        min(num_cands,len(all_seen_cands)))
+                #sample[1] = random.sample(all_seen_cands,
+                #                        min(num_cands,len(all_seen_cands)))
                 #print('random', sample[1])
-                #sample[1] = get_nearest_cand(sample[0], all_seen_cands,
-                #                                      rel_embeds, num_cands)
+                sample[1] = get_nearest_cand(sample[0], all_seen_cands,
+                                                      rel_embeds, num_cands)
                 #print('near', sample[1])
 
 def sample_constrains(rel_samples, relations_frequences, rel_embeds,
@@ -462,7 +462,7 @@ def train(training_data, valid_data, vocabulary, embedding_dim, hidden_dim,
                 #    [rel_embeds[i] for i in seed_rels])).to(device)
                 sample_embeds_np = sample_embeds.cpu().double().numpy()
                 #given_pro = kmeans_pro(sample_embeds_np, samples, num_constrain)
-            if epoch_i%5==0 and False:
+            if epoch_i%5==0:
                 update_rel_embed(model, all_seen_rels, all_relations, rel_embeds)
                 #update_rel_cands(memory_data, all_seen_rels, rel_embeds)
             del scores
