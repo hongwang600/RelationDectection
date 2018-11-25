@@ -59,7 +59,7 @@ def remove_unseen_relation(dataset, seen_relations):
             cleaned_data.append([data[0], neg_cands, data[2]])
         else:
             cleaned_data.append([data[0], data[1][-2:], data[2]])
-            #pass
+            pass
     return cleaned_data
 
 def rm_unseen_rels(full_rel_samples, seen_relations):

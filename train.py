@@ -239,6 +239,7 @@ def sample_constrains(rel_samples, relations_frequences, rel_embeds,
     #all_cands = list(rel_ques_cand.keys())[:]
     for this_memory in ret_samples:
         for i, sample in enumerate(this_memory):
+            '''
             cand_set = get_nearest_cand(sample[0], all_seen_rels, rel_embeds,
                                         num_cands)
                                         #num_cands)
@@ -247,8 +248,9 @@ def sample_constrains(rel_samples, relations_frequences, rel_embeds,
                               random.sample(cand_set,
                                             min(len(cand_set),num_cands)),
                               sample[2]]
-            #this_memory[i] = [sample[0], random.sample(
-            #    all_seen_rels, min(len(all_seen_rels), num_cands)), sample[2]]
+                              '''
+            this_memory[i] = [sample[0], random.sample(
+                all_seen_rels, min(len(all_seen_rels), num_cands)), sample[2]]
                 #cand_set, min(len(cand_set), num_cands)), sample[2]]
     return ret_samples
 
