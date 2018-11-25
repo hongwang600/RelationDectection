@@ -464,7 +464,7 @@ def train(training_data, valid_data, vocabulary, embedding_dim, hidden_dim,
                 #    [rel_embeds[i] for i in seed_rels])).to(device)
                 sample_embeds_np = sample_embeds.cpu().double().numpy()
                 #given_pro = kmeans_pro(sample_embeds_np, samples, num_constrain)
-            if epoch_i%5==0:
+            if epoch_i%5==0 and False:
                 update_rel_embed(model, all_seen_rels, all_relations, rel_embeds)
                 #update_rel_cands(memory_data, all_seen_rels, rel_embeds)
             del scores
