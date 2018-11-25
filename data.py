@@ -157,6 +157,7 @@ def gen_data():
     #print(glove_vocabulary[0:10])
     #print(glove_embedding['of'])
     training_data = read_samples(training_file)
+    #print(training_data[0])
     testing_data = read_samples(test_file)
     valid_data = read_samples(valid_file)
     all_samples = training_data + testing_data + valid_data

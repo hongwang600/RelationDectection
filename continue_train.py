@@ -47,13 +47,18 @@ def split_data(data_set, cluster_labels, num_clusters, shuffle_index):
 
 # remove unseen relations from the dataset
 def remove_unseen_relation(dataset, seen_relations):
+    #print(dataset[0])
     cleaned_data = []
     for data in dataset:
+        #print(data)
         neg_cands = [cand for cand in data[1] if cand in seen_relations]
+        #print(neg_cands)
         if len(neg_cands) > 0:
             #data[1] = neg_cands
             #cleaned_data.append(data)
             cleaned_data.append([data[0], neg_cands, data[2]])
+        else:
+            cleaned_data.append([data[0], data[1][-2:], data[2]])
     return cleaned_data
 
 def rm_unseen_rels(full_rel_samples, seen_relations):
@@ -392,7 +397,7 @@ def run_sequence(training_data, testing_data, valid_data, all_relations,
                                     num_clusters, shuffle_index)
     splited_test_data = split_data(testing_data, cluster_labels,
                                    num_clusters, shuffle_index)
-    #print(splited_training_data)
+    #print(splited_training_data[0][0])
     '''
     for data in splited_training_data[0]:
         print(data)
@@ -416,8 +421,10 @@ def run_sequence(training_data, testing_data, valid_data, all_relations,
     num_past_data = 0
     all_used_rels = list(rel_embeds.keys())
     for i in range(num_clusters):
-        seen_relations += [data[0] for data in splited_training_data[i] if
-                          data[0] not in seen_relations]
+        for data in splited_training_data[i]:
+            if data[0] not in seen_relations:
+                seen_relations.append(data[0])
+        #print(seen_relations)
         current_train_data = remove_unseen_relation(splited_training_data[i],
                                                     seen_relations)
         current_valid_data = remove_unseen_relation(splited_valid_data[i],
@@ -426,6 +433,7 @@ def run_sequence(training_data, testing_data, valid_data, all_relations,
         for j in range(i+1):
             current_test_data.append(
                 remove_unseen_relation(splited_test_data[j], seen_relations))
+        #print(len(current_train_data))
         one_memory_data = []
         '''
         if i > 0:
@@ -453,7 +461,7 @@ def run_sequence(training_data, testing_data, valid_data, all_relations,
                     all_seen_rels.append(this_cand)
         update_rel_embed(current_model, all_seen_rels, all_relations, rel_embeds)
         to_train_data = current_train_data+one_memory_data
-        update_rel_cands(memory_data, all_seen_rels, rel_embeds)
+        #update_rel_cands(memory_data, all_seen_rels, rel_embeds)
         #random.shuffle(to_train_data)
         current_model, acc_diff = train(to_train_data, current_valid_data,
                               vocabulary, embedding_dim, hidden_dim,
@@ -519,6 +527,7 @@ if __name__ == '__main__':
         embedding=gen_data()
     #bert_rel_features = compute_rel_embed(training_data)
     #print_avg_cand(training_data)
+    #print(training_data[0])
     cluster_labels, rel_features = cluster_data(num_clusters)
     to_use_embed = rel_features
     random.seed(random_seed)
