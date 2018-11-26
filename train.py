@@ -184,9 +184,12 @@ def sample_given_pro_bert(sample_pro_set, num_samples, bert_rel_feature,
     #print(selected_sample)
     return selected_sample
 
-def get_nearest_cand(pos_rel, seen_rels, rel_embeds, cand_size):
-    samples = [rel for rel in seen_rels if rel!=pos_rel]
+def get_nearest_cand(pos_rel, seen_rels, rel_embeds, cand_size, rm_cur = True):
     #return random.sample(samples, min(len(samples), num_samples))
+    if rm_cur:
+        samples = [rel for rel in seen_rels if rel!=pos_rel]
+    else:
+        samples = seen_rels
     sample_bert_embeds = torch.from_numpy(np.asarray(
         [rel_embeds[i] for i in samples])).to(device)
     seed_rel_embeds = torch.from_numpy(np.asarray(
@@ -216,11 +219,13 @@ def update_rel_cands(memory_data, all_seen_cands, rel_embeds):
     if len(memory_data) >0:
         for this_memory in memory_data:
             for sample in this_memory:
-                #sample[1] = random.sample(all_seen_cands,
-                #                        min(num_cands,len(all_seen_cands)))
+                valid_rels = [rel for rel in all_seen_cands if rel!=sample[0]]
+                sample[1] = random.sample(valid_rels,
+                                        min(num_cands,len(valid_rels)))
                 #print('random', sample[1])
-                sample[1] = get_nearest_cand(sample[0], all_seen_cands,
-                                                      rel_embeds, num_cands)
+                #sample[1] = get_nearest_cand(sample[0], valid_rels,
+                #                                      rel_embeds, num_cands,
+                #                                      False)
                 #print('near', sample[1])
 
 def sample_constrains(rel_samples, relations_frequences, rel_embeds,
@@ -251,6 +256,8 @@ def sample_constrains(rel_samples, relations_frequences, rel_embeds,
                               '''
             this_memory[i] = [sample[0], random.sample(
                 all_seen_rels, min(len(all_seen_rels), num_cands)), sample[2]]
+            if this_memory[i][0] in this_memory[i][1]:
+                this_memory[i][1].remove(this_memory[i][0])
                 #cand_set, min(len(cand_set), num_cands)), sample[2]]
     return ret_samples
 
