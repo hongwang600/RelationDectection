@@ -216,11 +216,11 @@ def update_rel_cands(memory_data, all_seen_cands, rel_embeds):
     if len(memory_data) >0:
         for this_memory in memory_data:
             for sample in this_memory:
-                sample[1] = random.sample(all_seen_cands,
-                                        min(num_cands,len(all_seen_cands)))
+                #sample[1] = random.sample(all_seen_cands,
+                #                        min(num_cands,len(all_seen_cands)))
                 #print('random', sample[1])
-                #sample[1] = get_nearest_cand(sample[0], all_seen_cands,
-                #                                      rel_embeds, num_cands)
+                sample[1] = get_nearest_cand(sample[0], all_seen_cands,
+                                                      rel_embeds, num_cands)
                 #print('near', sample[1])
 
 def sample_constrains(rel_samples, relations_frequences, rel_embeds,
