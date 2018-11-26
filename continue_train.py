@@ -26,6 +26,8 @@ epoch = conf['epoch']
 random_seed = conf['random_seed']
 loss_margin = conf['loss_margin']
 sequence_times = conf['sequence_times']
+num_cands = conf['num_cands']
+task_memory_size = conf['task_memory_size']
 
 def split_data(data_set, cluster_labels, num_clusters, shuffle_index):
     splited_data = [[] for i in range(num_clusters)]
@@ -45,7 +47,7 @@ def remove_unseen_relation(dataset, seen_relations):
             cleaned_data.append([data[0], neg_cands, data[2]])
             #cleaned_data.append(data)
         else:
-            cleaned_data.append([data[0], data[1][-2:], data[2]])
+            #cleaned_data.append([data[0], data[1][-2:], data[2]])
             pass
     return cleaned_data
 
@@ -74,6 +76,7 @@ def run_sequence(training_data, testing_data, valid_data, all_relations,
     current_model = None
     sequence_results = []
     all_seen_data = []
+    all_seen_rels = []
     #np.set_printoptions(precision=3)
     result_whole_test = []
     for i in range(num_clusters):
@@ -90,7 +93,17 @@ def run_sequence(training_data, testing_data, valid_data, all_relations,
         #current_model = None
         #to_train_data = current_train_data + random.sample(
         #    all_seen_data, min(len(all_seen_data), len(current_train_data)))
-        to_train_data = current_train_data + all_seen_data
+        for this_sample in current_train_data:
+            if this_sample[0] not in all_seen_rels:
+                all_seen_rels.append(this_sample[0])
+        for this_sample in all_seen_data:
+            valid_rel = [rel for rel in all_seen_rels if rel!=this_sample[0]]
+            this_sample[1] = random.sample(valid_rel, min(len(valid_rel),
+                                                          num_cands))
+        num_times = 1
+        if len(all_seen_data) > 0:
+            num_times = int(len(current_train_data)/len(all_seen_data))+1
+        to_train_data = current_train_data + all_seen_data*num_times
         #random.shuffle(all_seen_data)
         random.shuffle(to_train_data)
         current_model = train(to_train_data, current_valid_data,
@@ -98,7 +111,7 @@ def run_sequence(training_data, testing_data, valid_data, all_relations,
                               device, batch_size, lr, model_path,
                               embedding, all_relations, current_model, epoch,
                               loss_margin)
-        all_seen_data += current_train_data
+        all_seen_data += current_train_data[-task_memory_size:]
         results = [evaluate_model(current_model, test_data, batch_size,
                                   all_relations, device)
                    for test_data in current_test_data]
