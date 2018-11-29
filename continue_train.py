@@ -24,6 +24,7 @@ lr = conf['learning_rate']
 model_path = conf['model_path']
 epoch = conf['epoch']
 random_seed = conf['random_seed']
+num_cands = conf['num_cands']
 task_memory_size = conf['task_memory_size']
 loss_margin = conf['loss_margin']
 sequence_times = conf['sequence_times']
@@ -77,6 +78,7 @@ def run_sequence(training_data, testing_data, valid_data, all_relations,
     sequence_results = []
     #np.set_printoptions(precision=3)
     result_whole_test = []
+    all_seen_rels = []
     for i in range(num_clusters):
         seen_relations += [data[0] for data in splited_training_data[i] if
                           data[0] not in seen_relations]
@@ -88,6 +90,14 @@ def run_sequence(training_data, testing_data, valid_data, all_relations,
         for j in range(i+1):
             current_test_data.append(
                 remove_unseen_relation(splited_test_data[j], seen_relations))
+        for this_sample in current_train_data:
+            if this_sample[0] not in all_seen_rels:
+                all_seen_rels.append(this_sample[0])
+        for this_memory in memory_data:
+            for this_sample in this_memory:
+                rel_cands = [rel for rel in all_seen_rels if rel!=this_sample[0]]
+                this_sample[1] = random.sample(rel_cands,
+                                               min(len(rel_cands),num_cands))
         current_model = train(current_train_data, current_valid_data,
                               vocabulary, embedding_dim, hidden_dim,
                               device, batch_size, lr, model_path,
