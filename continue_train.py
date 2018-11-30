@@ -45,7 +45,7 @@ def remove_unseen_relation(dataset, seen_relations):
             #data[1] = neg_cands
             cleaned_data.append([data[0], neg_cands, data[2]])
         else:
-            cleaned_data.append([data[0], data[1][-2:], data[2]])
+            #cleaned_data.append([data[0], data[1][-2:], data[2]])
             pass
     return cleaned_data
 
@@ -86,6 +86,7 @@ def run_sequence(training_data, testing_data, valid_data, all_relations,
     rel_sample_count = {}
     #np.set_printoptions(precision=3)
     result_whole_test = []
+    all_seen_rels = []
     for i in range(num_clusters):
         seen_relations += [data[0] for data in splited_training_data[i] if
                           data[0] not in seen_relations]
@@ -99,11 +100,15 @@ def run_sequence(training_data, testing_data, valid_data, all_relations,
                 remove_unseen_relation(splited_test_data[j], seen_relations))
         #memory_data = sample_memory_data(all_seen_samples, task_memory_size)
         #print(memory_data)
+        for this_sample in current_train_data:
+            if this_sample[0] not in all_seen_rels:
+                all_seen_rels.append(this_sample[0])
         current_model = train(current_train_data, current_valid_data,
                               vocabulary, embedding_dim, hidden_dim,
                               device, batch_size, lr, model_path,
                               embedding, all_relations, current_model, epoch,
-                              all_seen_samples, task_memory_size, loss_margin)
+                              all_seen_samples, task_memory_size, loss_margin,
+                              all_seen_rels)
         results = [evaluate_model(current_model, test_data, batch_size,
                                   all_relations, device)
                    for test_data in current_test_data]

@@ -17,6 +17,7 @@ embedding_dim = conf['embedding_dim']
 hidden_dim = conf['hidden_dim']
 batch_size = conf['batch_size']
 model_path = conf['model_path']
+num_cands = conf['num_cands']
 device = conf['device']
 lr = conf['learning_rate']
 loss_margin = conf['loss_margin']
@@ -126,7 +127,7 @@ def get_grads_memory_data(model, memory_data, loss_function,
 def train(training_data, valid_data, vocabulary, embedding_dim, hidden_dim,
           device, batch_size, lr, model_path, embedding, all_relations,
           model=None, epoch=100, all_seen_samples=[],
-          task_memory_size=100, loss_margin=2.0):
+          task_memory_size=100, loss_margin=0.5, all_seen_rels=[]):
     if model is None:
         torch.manual_seed(100)
         model = SimilarityModel(embedding_dim, hidden_dim, len(vocabulary),
@@ -140,6 +141,10 @@ def train(training_data, valid_data, vocabulary, embedding_dim, hidden_dim,
         #training_data = training_data[0:100]
         for i in range((len(training_data)-1)//batch_size+1):
             memory_data = sample_memory_data(all_seen_samples, task_memory_size)
+            for this_sample in memory_data:
+                rel_cands = [rel for rel in all_seen_rels if rel!=this_sample[0]]
+                this_sample[1] = random.sample(rel_cands,
+                                               min(len(rel_cands),num_cands))
             memory_data_grads = get_grads_memory_data(model, memory_data,
                                                       loss_function,
                                                       all_relations,
