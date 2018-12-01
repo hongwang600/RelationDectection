@@ -109,7 +109,7 @@ class SimilarityModel(nn.Module):
 
     def forward(self, question_list, relation_list, device,
                 reverse_question_indexs, reverse_relation_indexs,
-                question_lengths, relation_lengths):
+                question_lengths, relation_lengths, reverse_model=None):
         '''
         question_embeds = [self.word_embeddings(sentence)
                            for sentence in question_list]
@@ -147,5 +147,19 @@ class SimilarityModel(nn.Module):
         #print('relation_embedding size', relation_embedding.size())
         #print('sentence_embedding', sentence_embedding)
         #print('relation_embedding', relation_embedding)
-        cos = nn.CosineSimilarity(dim=1)
-        return cos(question_embedding, relation_embedding)
+        if reverse_model is not None:
+            reverse_question_embedding = reverse_model(question_embedding)
+            reverse_relation_embedding = reverse_model(relation_embedding)
+            cos = nn.CosineSimilarity(dim=1)
+            origin_score =  cos(question_embedding, relation_embedding)
+            reverse_score =  cos(reverse_question_embedding,
+                                 reverse_relation_embedding)
+            #max_pooling, _ = torch.min(torch.stack((origin_score,
+            #                                        reverse_score)),0)
+            avg_pooling = torch.mean(torch.stack((origin_score,
+                                                    reverse_score)),0)
+            return avg_pooling
+            #return max_pooling
+        else:
+            cos = nn.CosineSimilarity(dim=1)
+            return cos(question_embedding, relation_embedding)

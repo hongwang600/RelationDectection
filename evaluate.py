@@ -60,7 +60,8 @@ def compute_diff_scores(model, samples, batch_size, all_relations, device):
             start_index += length
         return diff_scores
 # evaluate the model on the testing data
-def evaluate_model(model, testing_data, batch_size, all_relations, device):
+def evaluate_model(model, testing_data, batch_size, all_relations, device,
+                   reverse_model=None):
     #print('start evaluate')
     num_correct = 0
     #testing_data = testing_data[0:100]
@@ -80,7 +81,7 @@ def evaluate_model(model, testing_data, batch_size, all_relations, device):
         pad_relations = torch.nn.utils.rnn.pad_sequence(ranked_relations)
         all_scores = model(pad_questions, pad_relations, device,
                            reverse_question_indexs, reverse_relation_indexs,
-                           question_lengths, relation_lengths)
+                           question_lengths, relation_lengths, reverse_model)
         start_index = 0
         pred_indexs = []
         #print('len of relation_set:', len(relation_set_lengths))

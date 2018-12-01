@@ -19,6 +19,7 @@ from config import CONFIG as conf
 from train import train, sample_constrains, sample_given_pro, get_nearest_cand,\
     select_data_kmeans, update_rel_cands, select_n_centers
 from compute_rel_embed import compute_rel_embed
+from reverse_model import update_reverse_model
 
 embedding_dim = conf['embedding_dim']
 hidden_dim = conf['hidden_dim']
@@ -58,7 +59,7 @@ def remove_unseen_relation(dataset, seen_relations):
             #cleaned_data.append(data)
             cleaned_data.append([data[0], neg_cands, data[2]])
         else:
-            cleaned_data.append([data[0], data[1][-2:], data[2]])
+            #cleaned_data.append([data[0], data[1][-2:], data[2]])
             pass
     return cleaned_data
 
@@ -366,6 +367,27 @@ def get_que_embed(model, sample_list, all_relations):
         ret_que_embeds.append(que_embeds.detach().cpu().numpy())
     return np.concatenate(ret_que_embeds)
 
+def get_rel_embed(model, sample_list, all_relations):
+    ret_rel_embeds = []
+    for i in range((len(sample_list)-1)//batch_size+1):
+        samples = sample_list[i*batch_size:(i+1)*batch_size]
+        relations = []
+        for item in samples:
+            this_relation = torch.tensor(all_relations[item[0]],
+                                         dtype=torch.long).to(device)
+            relations.append(this_relation)
+        #print(len(relations))
+        model.init_hidden(device, len(relations))
+        ranked_relations, reverse_relation_indexs = \
+            ranking_sequence(relations)
+        relation_lengths = [len(relation) for relation in ranked_relations]
+        #print(ranked_relations)
+        pad_relations = torch.nn.utils.rnn.pad_sequence(ranked_relations)
+        rel_embeds = model.compute_rel_embed(pad_relations, relation_lengths,
+                                             reverse_relation_indexs)
+        ret_rel_embeds.append(rel_embeds.detach().cpu().numpy())
+    return np.concatenate(ret_rel_embeds)
+
 def select_data(model, samples, num_sel_data, all_relations):
     que_embeds = get_que_embed(model, samples, all_relations)
     que_embeds = preprocessing.normalize(que_embeds)
@@ -407,7 +429,10 @@ def run_sequence(training_data, testing_data, valid_data, all_relations,
     #print(cluster_labels)
     seen_relations = []
     current_model = None
+    reverse_model = None
     memory_data = []
+    memory_que_embed = []
+    memory_rel_embed = []
     sequence_results = []
     #np.set_printoptions(precision=3)
     result_whole_test = []
@@ -499,21 +524,37 @@ def run_sequence(training_data, testing_data, valid_data, all_relations,
                                                    past_fisher,
                                                    num_past_data)
                                                    '''
-        memory_data.append(current_train_data[-task_memory_size:])
-        #memory_data.append(select_data(current_model, current_train_data,
-        #                               task_memory_size, all_relations))
+        #memory_data.append(current_train_data[-task_memory_size:])
+        memory_data.append(select_data(current_model, current_train_data,
+                                       task_memory_size, all_relations))
         #memory_data.append(select_data_n_center(current_model,
         #                                        current_train_data,
         #                                        task_memory_size,
         #                                        all_relations))
+        memory_que_embed.append(get_que_embed(current_model, memory_data[-1],
+                                              all_relations))
+        memory_rel_embed.append(get_rel_embed(current_model, memory_data[-1],
+                                              all_relations))
+        if len(memory_data) > 1:
+            cur_que_embed = [get_que_embed(current_model, this_memory,
+                                           all_relations) for this_memory in
+                             memory_data]
+            cur_rel_embed = [get_rel_embed(current_model, this_memory,
+                                           all_relations) for this_memory in
+                             memory_data]
+            reverse_model = update_reverse_model(reverse_model, cur_que_embed,
+                                                 cur_rel_embed,
+                                                 memory_que_embed,
+                                                 memory_rel_embed)
         results = [evaluate_model(current_model, test_data, batch_size,
-                                  all_relations, device)
+                                  all_relations, device, reverse_model)
                    for test_data in current_test_data]
         print_list(results)
         sequence_results.append(np.array(results))
         result_whole_test.append(evaluate_model(current_model,
                                                 testing_data, batch_size,
-                                                all_relations, device))
+                                                all_relations, device,
+                                                reverse_model))
     print('test set size:', [len(test_set) for test_set in current_test_data])
     #print('whole_test:', result_whole_test)
     return sequence_results, result_whole_test
