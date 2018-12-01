@@ -261,7 +261,8 @@ def sample_constrains(rel_samples, relations_frequences, rel_embeds,
                 #cand_set, min(len(cand_set), num_cands)), sample[2]]
     return ret_samples
 
-def feed_samples(model, samples, loss_function, all_relations, device):
+def feed_samples(model, samples, loss_function, all_relations, device,
+                 reverse_model=None, memory_que_embed=[], memory_rel_embed):
     questions, relations, relation_set_lengths = process_samples(
         samples, all_relations, device)
     #print('got data')
@@ -400,7 +401,8 @@ def train(training_data, valid_data, vocabulary, embedding_dim, hidden_dim,
           model=None, epoch=100, memory_data=[], loss_margin=0.5,
           past_fisher=None, rel_samples=[], relation_frequences=[],
           rel_embeds=None, rel_ques_cand=None, rel_acc_diff=None,
-          all_seen_rels=None, update_rel_embed=None):
+          all_seen_rels=None, update_rel_embed=None, reverse_model=None,
+          memory_que_embed=[],memory_rel_embed=[]):
     if model is None:
         torch.manual_seed(100)
         model = SimilarityModel(embedding_dim, hidden_dim, len(vocabulary),
@@ -443,7 +445,8 @@ def train(training_data, valid_data, vocabulary, embedding_dim, hidden_dim,
             #print(memory_data_grads)
             #start_time = time.time()
             scores, loss = feed_samples(model, samples, loss_function,
-                                        all_relations, device)
+                                        all_relations, device, reverse_model,
+                                        memory_que_embed, memory_rel_embed)
             #end_time = time.time()
             #print('forward time:', end_time - start_time)
             sample_grad = copy_grad_data(model)

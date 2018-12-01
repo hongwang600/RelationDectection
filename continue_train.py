@@ -498,7 +498,9 @@ def run_sequence(training_data, testing_data, valid_data, all_relations,
                               memory_data, loss_margin, past_fisher,
                               rel_samples, relations_frequences_all,
                            rel_embeds, rel_ques_cand, rel_acc_diff,
-                                        all_seen_rels, update_rel_embed)
+                                        all_seen_rels, update_rel_embed,
+                                        reverse_model, memory_que_embed,
+                                        memory_rel_embed)
         #updata_saved_relations(current_train_data, rel_samples,
         #                       relations_frequences_all, rel_acc_diff, acc_diff)
         #print(len(rel_samples))
