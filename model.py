@@ -88,28 +88,37 @@ class SimilarityModel(nn.Module):
         return sequence, inverse_indexs
 
     def compute_que_embed(self, question_list, question_lengths,
-                          reverse_question_indexs):
+                          reverse_question_indexs, reverse_model,
+                          before_reverse=False):
         question_embeds = self.word_embeddings(question_list)
         question_packed = \
             torch.nn.utils.rnn.pack_padded_sequence(question_embeds,
                                                     question_lengths)
         question_embedding = self.sentence_biLstm(question_packed)
         question_embedding = question_embedding[reverse_question_indexs]
-        return question_embedding.detach()
+        if reverse_model is not None and not before_reverse:
+            return reverse_model(question_embedding).detach()
+        else:
+            return question_embedding.detach()
 
     def compute_rel_embed(self, relation_list, relation_lengths,
-                          reverse_relation_indexs):
+                          reverse_relation_indexs, reverse_model,
+                          before_reverse=False):
         relation_embeds = self.word_embeddings(relation_list)
         relation_packed = \
             torch.nn.utils.rnn.pack_padded_sequence(relation_embeds,
                                                     relation_lengths)
         relation_embedding = self.relation_biLstm(relation_packed)
         relation_embedding = relation_embedding[reverse_relation_indexs]
-        return relation_embedding.detach()
+        if reverse_model is not None and not before_reverse:
+            return reverse_model(relation_embedding).detach()
+        else:
+            return relation_embedding.detach()
 
     def forward(self, question_list, relation_list, device,
                 reverse_question_indexs, reverse_relation_indexs,
-                question_lengths, relation_lengths, reverse_model=None):
+                question_lengths, relation_lengths, reverse_model=None,
+                ret_embeds=False):
         '''
         question_embeds = [self.word_embeddings(sentence)
                            for sentence in question_list]
@@ -158,8 +167,16 @@ class SimilarityModel(nn.Module):
             #                                        reverse_score)),0)
             avg_pooling = torch.mean(torch.stack((origin_score,
                                                     reverse_score)),0)
-            return avg_pooling
+            if ret_embeds:
+                return reverse_score, reverse_question_embedding,\
+                    reverse_relation_embedding
+            else:
+                return reverse_score
             #return max_pooling
         else:
             cos = nn.CosineSimilarity(dim=1)
-            return cos(question_embedding, relation_embedding)
+            if not ret_embeds:
+                return cos(question_embedding, relation_embedding)
+            else:
+                return cos(question_embedding, relation_embedding),\
+                    question_embedding, relation_embedding

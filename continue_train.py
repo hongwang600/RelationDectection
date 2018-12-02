@@ -59,7 +59,7 @@ def remove_unseen_relation(dataset, seen_relations):
             #cleaned_data.append(data)
             cleaned_data.append([data[0], neg_cands, data[2]])
         else:
-            #cleaned_data.append([data[0], data[1][-2:], data[2]])
+            cleaned_data.append([data[0], data[1][-2:], data[2]])
             pass
     return cleaned_data
 
@@ -347,7 +347,8 @@ def save_rel_embeds(model, all_seen_rels, all_relations, file_name):
                 to_write = [round(x, 6) for x in embed]
                 writer.write(str(to_write)+'\n')
 
-def get_que_embed(model, sample_list, all_relations):
+def get_que_embed(model, sample_list, all_relations, reverse_model,
+                  before_reverse=False):
     ret_que_embeds = []
     for i in range((len(sample_list)-1)//batch_size+1):
         samples = sample_list[i*batch_size:(i+1)*batch_size]
@@ -363,11 +364,13 @@ def get_que_embed(model, sample_list, all_relations):
         #print(ranked_questions)
         pad_questions = torch.nn.utils.rnn.pad_sequence(ranked_questions)
         que_embeds = model.compute_que_embed(pad_questions, question_lengths,
-                                             reverse_question_indexs)
+                                             reverse_question_indexs,
+                                             reverse_model, before_reverse)
         ret_que_embeds.append(que_embeds.detach().cpu().numpy())
     return np.concatenate(ret_que_embeds)
 
-def get_rel_embed(model, sample_list, all_relations):
+def get_rel_embed(model, sample_list, all_relations, reverse_model,
+                  before_reverse=False):
     ret_rel_embeds = []
     for i in range((len(sample_list)-1)//batch_size+1):
         samples = sample_list[i*batch_size:(i+1)*batch_size]
@@ -384,12 +387,13 @@ def get_rel_embed(model, sample_list, all_relations):
         #print(ranked_relations)
         pad_relations = torch.nn.utils.rnn.pad_sequence(ranked_relations)
         rel_embeds = model.compute_rel_embed(pad_relations, relation_lengths,
-                                             reverse_relation_indexs)
+                                             reverse_relation_indexs,
+                                             reverse_model, before_reverse)
         ret_rel_embeds.append(rel_embeds.detach().cpu().numpy())
     return np.concatenate(ret_rel_embeds)
 
-def select_data(model, samples, num_sel_data, all_relations):
-    que_embeds = get_que_embed(model, samples, all_relations)
+def select_data(model, samples, num_sel_data, all_relations, reverse_model):
+    que_embeds = get_que_embed(model, samples, all_relations, reverse_model)
     que_embeds = preprocessing.normalize(que_embeds)
     #print(que_embeds[:5])
     num_clusters = min(num_sel_data, len(samples))
@@ -528,21 +532,29 @@ def run_sequence(training_data, testing_data, valid_data, all_relations,
                                                    '''
         #memory_data.append(current_train_data[-task_memory_size:])
         memory_data.append(select_data(current_model, current_train_data,
-                                       task_memory_size, all_relations))
+                                       task_memory_size, all_relations,
+                                       reverse_model))
         #memory_data.append(select_data_n_center(current_model,
         #                                        current_train_data,
         #                                        task_memory_size,
         #                                        all_relations))
         memory_que_embed.append(get_que_embed(current_model, memory_data[-1],
-                                              all_relations))
+                                              all_relations, reverse_model))
         memory_rel_embed.append(get_rel_embed(current_model, memory_data[-1],
-                                              all_relations))
+                                              all_relations, reverse_model))
+        '''
+        for i in range(len(memory_data)):
+            print(len(memory_data[i]), len(memory_que_embed[i]),
+                  len(memory_rel_embed[i]))
+                  '''
         if len(memory_data) > 1:
             cur_que_embed = [get_que_embed(current_model, this_memory,
-                                           all_relations) for this_memory in
+                                           all_relations, reverse_model, True)
+                             for this_memory in
                              memory_data]
             cur_rel_embed = [get_rel_embed(current_model, this_memory,
-                                           all_relations) for this_memory in
+                                           all_relations, reverse_model, True)
+                             for this_memory in
                              memory_data]
             reverse_model = update_reverse_model(reverse_model, cur_que_embed,
                                                  cur_rel_embed,

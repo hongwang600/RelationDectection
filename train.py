@@ -262,7 +262,7 @@ def sample_constrains(rel_samples, relations_frequences, rel_embeds,
     return ret_samples
 
 def feed_samples(model, samples, loss_function, all_relations, device,
-                 reverse_model=None, memory_que_embed=[], memory_rel_embed):
+                 reverse_model=None, memory_que_embed=[], memory_rel_embed=[]):
     questions, relations, relation_set_lengths = process_samples(
         samples, all_relations, device)
     #print('got data')
@@ -282,23 +282,38 @@ def feed_samples(model, samples, loss_function, all_relations, device,
 
     model.zero_grad()
     model.init_hidden(device, sum(relation_set_lengths))
-    all_scores = model(pad_questions, pad_relations, device,
+    all_scores, cur_que_embed, cur_rel_embed = model(pad_questions,
+                                                     pad_relations, device,
                        reverse_question_indexs, reverse_relation_indexs,
-                       question_lengths, relation_lengths)
+                       question_lengths, relation_lengths, reverse_model,
+                       ret_embeds=True)
     all_scores = all_scores.to('cpu')
     pos_scores = []
     neg_scores = []
+    pos_index = []
     start_index = 0
     for length in relation_set_lengths:
+        pos_index.append(start_index)
         pos_scores.append(all_scores[start_index].expand(length-1))
         neg_scores.append(all_scores[start_index+1:start_index+length])
         start_index += length
     pos_scores = torch.cat(pos_scores)
     neg_scores = torch.cat(neg_scores)
+    reverse_model_criterion = nn.MSELoss()
 
     loss = loss_function(pos_scores, neg_scores,
                          torch.ones(sum(relation_set_lengths)-
                                     len(relation_set_lengths)))
+    #if reverse_model is not None and len(memory_que_embed) > 0 and False:
+    if False:
+        reverse_model = reverse_model.to(device)
+        que_y = torch.from_numpy(memory_que_embed)
+        rel_y = torch.from_numpy(memory_rel_embed)
+        que_out = reverse_model.forward(cur_que_embed[pos_index]).to('cpu')
+        rel_out = reverse_model.forward(cur_rel_embed[pos_index]).to('cpu')
+        loss+= reverse_model_criterion(que_out, que_y) +\
+            reverse_model_criterion(rel_out, rel_y)
+
     loss.backward()
     return all_scores, loss
 
@@ -372,11 +387,14 @@ def overwrite_grad(pp, newgrad, grad_dims):
         cnt += 1
 
 def get_grads_memory_data(model, memory_data, loss_function,
-                          all_relations, device):
+                          all_relations, device, reverse_model,
+                          memory_que_embed, memory_rel_embed):
     memory_data_grads = []
-    for data in memory_data:
+    for i, data in enumerate(memory_data):
         scores, loss = feed_samples(model, data,
-                                    loss_function, all_relations, device)
+                                    loss_function, all_relations, device,
+                                    reverse_model,
+                                    memory_que_embed[i], memory_rel_embed[i])
         memory_data_grads.append(copy_grad_data(model))
         del scores
         del loss
@@ -441,12 +459,13 @@ def train(training_data, valid_data, vocabulary, embedding_dim, hidden_dim,
             memory_data_grads = get_grads_memory_data(model, to_train_mem,
                                                       loss_function,
                                                       all_relations,
-                                                      device)
+                                                      device, reverse_model,
+                                                      memory_que_embed,
+                                                      memory_rel_embed)
             #print(memory_data_grads)
             #start_time = time.time()
             scores, loss = feed_samples(model, samples, loss_function,
-                                        all_relations, device, reverse_model,
-                                        memory_que_embed, memory_rel_embed)
+                                        all_relations, device, reverse_model)
             #end_time = time.time()
             #print('forward time:', end_time - start_time)
             sample_grad = copy_grad_data(model)
