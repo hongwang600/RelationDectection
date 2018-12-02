@@ -59,7 +59,7 @@ def remove_unseen_relation(dataset, seen_relations):
             #cleaned_data.append(data)
             cleaned_data.append([data[0], neg_cands, data[2]])
         else:
-            cleaned_data.append([data[0], data[1][-2:], data[2]])
+            #cleaned_data.append([data[0], data[1][-2:], data[2]])
             pass
     return cleaned_data
 
@@ -560,6 +560,14 @@ def run_sequence(training_data, testing_data, valid_data, all_relations,
                                                  cur_rel_embed,
                                                  memory_que_embed,
                                                  memory_rel_embed)
+            memory_que_embed = [get_que_embed(current_model, this_memory,
+                                           all_relations, reverse_model, False)
+                             for this_memory in
+                             memory_data]
+            memory_rel_embed = [get_rel_embed(current_model, this_memory,
+                                           all_relations, reverse_model, False)
+                             for this_memory in
+                             memory_data]
         results = [evaluate_model(current_model, test_data, batch_size,
                                   all_relations, device, reverse_model)
                    for test_data in current_test_data]

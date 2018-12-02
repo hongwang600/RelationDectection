@@ -15,7 +15,7 @@ CONFIG= {
     'num_constrain': 10,
     'data_per_constrain': 10,
     'lr_revers_model': 0.0001,
-    'epoch_revers_model': 20,
+    'epoch_revers_model': 10,
     'model_path': 'model.pt',
     'device': torch.device('cuda:0' if torch.cuda.is_available() else 'cpu'),
     'bert_feature_file': './data/bert_feature/bert_feature.txt',
