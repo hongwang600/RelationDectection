@@ -462,9 +462,9 @@ def run_sequence(training_data, testing_data, valid_data, all_relations,
                 if this_cand not in all_seen_rels:
                     all_seen_rels.append(this_cand)
                     '''
-        update_rel_embed(current_model, all_seen_rels, all_relations, rel_embeds)
+        #update_rel_embed(current_model, all_seen_rels, all_relations, rel_embeds)
         to_train_data = current_train_data+one_memory_data
-        #update_rel_cands(memory_data, all_seen_rels, rel_embeds)
+        update_rel_cands(memory_data, all_seen_rels, rel_embeds)
         #random.shuffle(to_train_data)
         current_model, acc_diff = train(to_train_data, current_valid_data,
                               vocabulary, embedding_dim, hidden_dim,
@@ -474,9 +474,10 @@ def run_sequence(training_data, testing_data, valid_data, all_relations,
                               rel_samples, relations_frequences_all,
                            rel_embeds, rel_ques_cand, rel_acc_diff,
                                         all_seen_rels, update_rel_embed)
+        '''
         updata_saved_relations(current_train_data, rel_samples,
                                relations_frequences_all, rel_acc_diff, acc_diff)
-        print(len(rel_samples))
+        #print(len(rel_samples))
         for rel in rel_samples:
             if len(rel_samples[rel]) > data_per_constrain:
                 rel_samples[rel] = random.sample(rel_samples[rel],
@@ -484,6 +485,7 @@ def run_sequence(training_data, testing_data, valid_data, all_relations,
                                                      len(rel_samples[rel])))
                 #rel_samples[rel] = select_data(current_model, rel_samples[rel],
                 #                               data_per_constrain, all_relations)
+        '''
         #updata_full_saved_relations(splited_training_data[i], full_rel_samples)
         #rel_samples = rm_unseen_rels(full_rel_samples, seen_relations)
         #save_rel_embeds(current_model, all_seen_rels, all_relations,
@@ -500,8 +502,8 @@ def run_sequence(training_data, testing_data, valid_data, all_relations,
                                                    num_past_data)
                                                    '''
         #memory_data.append(current_train_data[-task_memory_size:])
-        #memory_data.append(select_data(current_model, current_train_data,
-        #                               task_memory_size, all_relations))
+        memory_data.append(select_data(current_model, current_train_data,
+                                       task_memory_size, all_relations))
         #memory_data.append(select_data_n_center(current_model,
         #                                        current_train_data,
         #                                        task_memory_size,
