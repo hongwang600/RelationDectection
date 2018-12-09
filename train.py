@@ -168,7 +168,7 @@ def check_constrain(memory_grads, sample_grad):
 
 def train(training_data, valid_data, vocabulary, embedding_dim, hidden_dim,
           device, batch_size, lr, model_path, embedding, all_relations,
-          model=None, epoch=100, memory_data=[], loss_margin=2.0,
+          model=None, epoch=100, memory_data=[], loss_margin=0.5,
           saved_que_embeds=None, saved_rel_embeds=None):
     if model is None:
         torch.manual_seed(100)
