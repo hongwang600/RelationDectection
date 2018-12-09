@@ -59,7 +59,7 @@ def remove_unseen_relation(dataset, seen_relations):
             #cleaned_data.append(data)
             cleaned_data.append([data[0], neg_cands, data[2]])
         else:
-            cleaned_data.append([data[0], data[1][-2:], data[2]])
+            #cleaned_data.append([data[0], data[1][-2:], data[2]])
             pass
     return cleaned_data
 
@@ -613,6 +613,7 @@ def run_sequence(training_data, testing_data, valid_data, all_relations,
                                               all_relations, reverse_model))
         memory_rel_embed.append(get_rel_embed(current_model, memory_data[-1],
                                               all_relations, reverse_model))
+        '''
         embed_diff_samples.append(current_train_data[-1000:])
         embed_diff_embeds.append(get_que_embed(current_model,
                                                embed_diff_samples[-1],
@@ -620,6 +621,7 @@ def run_sequence(training_data, testing_data, valid_data, all_relations,
         embed_diff_embeds.append(get_rel_embed(current_model,
                                                embed_diff_samples[-1],
                                                all_relations, reverse_model))
+                                               '''
         '''
         for i in range(len(memory_data)):
             print(len(memory_data[i]), len(memory_que_embed[i]),
@@ -634,7 +636,6 @@ def run_sequence(training_data, testing_data, valid_data, all_relations,
                                            all_relations, reverse_model, True)
                              for this_memory in
                              memory_data]
-            '''
             reverse_model = update_reverse_model(reverse_model, cur_que_embed,
                                                  cur_rel_embed,
                                                  memory_que_embed,
@@ -647,11 +648,12 @@ def run_sequence(training_data, testing_data, valid_data, all_relations,
                                            all_relations, reverse_model, False)
                              for this_memory in
                              memory_data]
-                             '''
+        '''
         embed_diff_result.append(get_embed_diff_result(current_model,
                                                        reverse_model,
                                                        embed_diff_embeds,
                                                        embed_diff_samples))
+                                                       '''
         #print('embed diff', embed_diff_result)
         results = [evaluate_model(current_model, test_data, batch_size,
                                   all_relations, device, reverse_model)
@@ -666,7 +668,7 @@ def run_sequence(training_data, testing_data, valid_data, all_relations,
     print('test set size:', [len(test_set) for test_set in current_test_data])
     #save_embed_diff_result(embed_diff_result)
     #print('whole_test:', result_whole_test)
-    return sequence_results, result_whole_test, embed_diff_result
+    return sequence_results, result_whole_test, [[1]]
 
 def print_avg_results(all_results):
     avg_result = []
@@ -684,7 +686,8 @@ def print_avg_cand(sample_list):
 
 if __name__ == '__main__':
     random_seed = int(sys.argv[1])
-    embed_result_file = sys.argv[2]
+    #embed_result_file = sys.argv[2]
+    embed_result_file = 'null.txt'
     training_data, testing_data, valid_data, all_relations, vocabulary, \
         embedding=gen_data()
     #bert_rel_features = compute_rel_embed(training_data)
