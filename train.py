@@ -304,15 +304,17 @@ def feed_samples(model, samples, loss_function, all_relations, device,
     loss = loss_function(pos_scores, neg_scores,
                          torch.ones(sum(relation_set_lengths)-
                                     len(relation_set_lengths)))
-    #if reverse_model is not None and len(memory_que_embed) > 0 and False:
-    if False:
-        reverse_model = reverse_model.to(device)
+    if len(memory_que_embed) > 0:
+    #if False:
+        #reverse_model = reverse_model.to(device)
         que_y = torch.from_numpy(memory_que_embed)
         rel_y = torch.from_numpy(memory_rel_embed)
-        que_out = reverse_model.forward(cur_que_embed[pos_index]).to('cpu')
-        rel_out = reverse_model.forward(cur_rel_embed[pos_index]).to('cpu')
+        que_out = cur_que_embed[pos_index].to('cpu')
+        rel_out = cur_rel_embed[pos_index].to('cpu')
+        #print(loss)
         loss+= reverse_model_criterion(que_out, que_y) +\
             reverse_model_criterion(rel_out, rel_y)
+        #print(loss)
 
     loss.backward()
     return all_scores, loss
@@ -478,7 +480,10 @@ def train(training_data, valid_data, vocabulary, embedding_dim, hidden_dim,
                 #print(memory_data)
                 scores, loss = feed_samples(model, memory_batch,
                                             loss_function,
-                                            all_relations, device, reverse_model)
+                                            all_relations, device,
+                                            reverse_model,
+                                            memory_que_embed[memory_index],
+                                            memory_rel_embed[memory_index])
                 optimizer.step()
                 memory_index = (memory_index+1)%len(memory_data)
             scores, loss = feed_samples(model, samples, loss_function,
