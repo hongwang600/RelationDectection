@@ -405,6 +405,25 @@ def select_data(model, samples, num_sel_data, all_relations, reverse_model):
         selected_samples.append(samples[sel_index])
     return selected_samples
 
+def get_dis2mean(embeds, sel_index, cand_index, mean_embed):
+    this_index = sel_index + [cand_index]
+    this_embed = np.mean(embeds[this_index], 0)
+    return np.linalg.norm(this_embed-mean_embed)
+
+def select_data_icarl(model, samples, num_sel_data,
+                      all_relations, reverse_model):
+    que_embeds = get_que_embed(model, samples, all_relations, reverse_model)
+    que_embeds = preprocessing.normalize(que_embeds)
+    #print(que_embeds[:5])
+    mean_embed = que_embeds.mean(0)
+    sel_index = []
+    sample_len = len(samples)
+    for i in range(min(num_sel_data, sample_len)):
+        dis_list = [get_dis2mean(que_embeds, sel_index, cand, mean_embed)
+                    for cand in range(sample_len)]
+        sel_index.append(np.argmin(dis_list))
+    return [samples[i] for i in sel_index]
+
 def select_data_n_center(model, samples, num_sel_data, all_relations):
     que_embeds = torch.from_numpy(
         get_que_embed(model, samples, all_relations))
@@ -414,6 +433,44 @@ def select_data_n_center(model, samples, num_sel_data, all_relations):
                                           seed_center_embed.view(1,-1))
     sel_index += [seed_center]
     return [samples[i] for i in sel_index]
+
+def compute_cos_similarity(a, b):
+    a_t = torch.from_numpy(a)
+    b_t = torch.from_numpy(b)
+    cos = nn.CosineSimilarity(dim=1, eps=1e-6)
+    result = cos(a_t, b_t)
+    return np.mean(result.numpy())
+
+def get_embed_diff_result(current_model, reverse_model,  embed_diff_embeds,
+                          embed_diff_samples):
+    embed_diff_result = []
+    cur_que_embed = [get_que_embed(current_model, this_memory,
+                                   all_relations, reverse_model)
+                     for this_memory in
+                     embed_diff_samples]
+    cur_rel_embed = [get_rel_embed(current_model, this_memory,
+                                   all_relations, reverse_model)
+                     for this_memory in
+                     embed_diff_samples]
+    for i in range(len(embed_diff_samples)):
+        '''
+        embed_diff_result.append(np.mean(
+            [np.mean(np.linalg.norm(embed_diff_embeds[2*i]-cur_que_embed[i],
+                    axis=1)),
+             np.mean(np.linalg.norm(embed_diff_embeds[2*i+1]-cur_rel_embed[i],
+                    axis=1))]))
+                    '''
+        embed_diff_result.append(np.mean([
+            compute_cos_similarity(embed_diff_embeds[2*i], cur_que_embed[i]),
+            compute_cos_similarity(embed_diff_embeds[2*i+1], cur_rel_embed[i])]))
+    return embed_diff_result
+
+def save_embed_diff_result(all_embed_diff):
+    with open(embed_result_file, 'w') as file_out:
+        for embed_diff_result in all_embed_diff:
+            for this_result in embed_diff_result:
+                to_write = [round(x, 6) for x in this_result]
+                file_out.write(str(to_write)+'\n')
 
 def run_sequence(training_data, testing_data, valid_data, all_relations,
                  vocabulary,embedding, cluster_labels, num_clusters,
@@ -449,6 +506,10 @@ def run_sequence(training_data, testing_data, valid_data, all_relations,
     all_seen_rels = []
     past_fisher = None
     num_past_data = 0
+    all_seen_data = []
+    embed_diff_samples = []
+    embed_diff_embeds = []
+    embed_diff_result = []
     all_used_rels = list(rel_embeds.keys())
     for i in range(num_clusters):
         for data in splited_training_data[i]:
@@ -492,16 +553,23 @@ def run_sequence(training_data, testing_data, valid_data, all_relations,
                     all_seen_rels.append(this_cand)
                     '''
         #update_rel_embed(current_model, all_seen_rels, all_relations, rel_embeds)
-        to_train_data = current_train_data+one_memory_data
         update_rel_cands(memory_data, all_seen_rels, rel_embeds)
+        all_seen_data = []
+        for this_memory in memory_data:
+            all_seen_data+=this_memory
+        num_times = 1
+        if len(all_seen_data) > 0:
+            num_times = int(len(current_train_data)/len(all_seen_data))+1
+        #to_train_data = current_train_data+all_seen_data*num_times
         #random.shuffle(to_train_data)
+        to_train_data = current_train_data
         current_model, acc_diff = train(to_train_data, current_valid_data,
                               vocabulary, embedding_dim, hidden_dim,
                               device, batch_size, lr, model_path,
                               embedding, all_relations, current_model, epoch,
                               memory_data, loss_margin, past_fisher,
                               rel_samples, relations_frequences_all,
-                           rel_embeds, rel_ques_cand, rel_acc_diff,
+                              rel_embeds, rel_ques_cand, rel_acc_diff,
                                         all_seen_rels, update_rel_embed,
                                         reverse_model, memory_que_embed,
                                         memory_rel_embed)
@@ -534,6 +602,9 @@ def run_sequence(training_data, testing_data, valid_data, all_relations,
         memory_data.append(select_data(current_model, current_train_data,
                                        task_memory_size, all_relations,
                                        reverse_model))
+        #memory_data.append(select_data_icarl(current_model, current_train_data,
+        #                               task_memory_size, all_relations,
+        #                               reverse_model))
         #memory_data.append(select_data_n_center(current_model,
         #                                        current_train_data,
         #                                        task_memory_size,
@@ -542,6 +613,13 @@ def run_sequence(training_data, testing_data, valid_data, all_relations,
                                               all_relations, reverse_model))
         memory_rel_embed.append(get_rel_embed(current_model, memory_data[-1],
                                               all_relations, reverse_model))
+        embed_diff_samples.append(current_train_data[-1000:])
+        embed_diff_embeds.append(get_que_embed(current_model,
+                                               embed_diff_samples[-1],
+                                               all_relations, reverse_model))
+        embed_diff_embeds.append(get_rel_embed(current_model,
+                                               embed_diff_samples[-1],
+                                               all_relations, reverse_model))
         '''
         for i in range(len(memory_data)):
             print(len(memory_data[i]), len(memory_que_embed[i]),
@@ -556,6 +634,7 @@ def run_sequence(training_data, testing_data, valid_data, all_relations,
                                            all_relations, reverse_model, True)
                              for this_memory in
                              memory_data]
+            '''
             reverse_model = update_reverse_model(reverse_model, cur_que_embed,
                                                  cur_rel_embed,
                                                  memory_que_embed,
@@ -568,6 +647,12 @@ def run_sequence(training_data, testing_data, valid_data, all_relations,
                                            all_relations, reverse_model, False)
                              for this_memory in
                              memory_data]
+                             '''
+        embed_diff_result.append(get_embed_diff_result(current_model,
+                                                       reverse_model,
+                                                       embed_diff_embeds,
+                                                       embed_diff_samples))
+        #print('embed diff', embed_diff_result)
         results = [evaluate_model(current_model, test_data, batch_size,
                                   all_relations, device, reverse_model)
                    for test_data in current_test_data]
@@ -577,9 +662,11 @@ def run_sequence(training_data, testing_data, valid_data, all_relations,
                                                 testing_data, batch_size,
                                                 all_relations, device,
                                                 reverse_model))
+        #break
     print('test set size:', [len(test_set) for test_set in current_test_data])
+    #save_embed_diff_result(embed_diff_result)
     #print('whole_test:', result_whole_test)
-    return sequence_results, result_whole_test
+    return sequence_results, result_whole_test, embed_diff_result
 
 def print_avg_results(all_results):
     avg_result = []
@@ -597,6 +684,7 @@ def print_avg_cand(sample_list):
 
 if __name__ == '__main__':
     random_seed = int(sys.argv[1])
+    embed_result_file = sys.argv[2]
     training_data, testing_data, valid_data, all_relations, vocabulary, \
         embedding=gen_data()
     #bert_rel_features = compute_rel_embed(training_data)
@@ -609,18 +697,21 @@ if __name__ == '__main__':
     start_time = time.time()
     all_results = []
     result_all_test_data = []
+    all_embed_diff = []
     for i in range(sequence_times):
         shuffle_index = list(range(num_clusters))
         random_seed = int(sys.argv[1]) + 100*i
         random.seed(random_seed)
         #random.seed(random_seed+100*i)
         random.shuffle(shuffle_index)
-        sequence_results, result_whole_test = run_sequence(
+        sequence_results, result_whole_test, embed_diff_result = run_sequence(
             training_data, testing_data, valid_data, all_relations,
             vocabulary, embedding, cluster_labels, num_clusters, shuffle_index,
             to_use_embed)
         all_results.append(sequence_results)
         result_all_test_data.append(result_whole_test)
+        all_embed_diff.append(embed_diff_result)
+    save_embed_diff_result(all_embed_diff)
     avg_result_all_test = np.average(result_all_test_data, 0)
     for result_whole_test in result_all_test_data:
         print_list(result_whole_test)

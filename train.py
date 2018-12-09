@@ -431,6 +431,8 @@ def train(training_data, valid_data, vocabulary, embedding_dim, hidden_dim,
     best_acc = 0
     #acc_pre=evaluate_model(model, valid_data, batch_size, all_relations, device)
     given_pro = None
+    memory_index = 0
+    memory_data_grads = []
     for epoch_i in range(epoch):
         #print('epoch', epoch_i)
         #training_data = training_data[0:100]
@@ -453,6 +455,7 @@ def train(training_data, valid_data, vocabulary, embedding_dim, hidden_dim,
                                                 seed_rels, rel_ques_cand,
                                                 rel_acc_diff,
                                                 given_pro, all_seen_rels)
+            '''
             to_train_mem = memory_data
             if len(memory_data) > num_constrain:
                 to_train_mem = random.sample(memory_data, num_constrain)
@@ -462,8 +465,22 @@ def train(training_data, valid_data, vocabulary, embedding_dim, hidden_dim,
                                                       device, reverse_model,
                                                       memory_que_embed,
                                                       memory_rel_embed)
+                                                      '''
             #print(memory_data_grads)
             #start_time = time.time()
+            if len(memory_data) > 0:
+                all_seen_data = []
+                for this_memory in memory_data:
+                    all_seen_data+=this_memory
+                memory_batch = memory_data[memory_index]
+                #memory_batch = random.sample(all_seen_data,
+                #                             min(batch_size, len(all_seen_data)))
+                #print(memory_data)
+                scores, loss = feed_samples(model, memory_batch,
+                                            loss_function,
+                                            all_relations, device, reverse_model)
+                optimizer.step()
+                memory_index = (memory_index+1)%len(memory_data)
             scores, loss = feed_samples(model, samples, loss_function,
                                         all_relations, device, reverse_model)
             #end_time = time.time()
