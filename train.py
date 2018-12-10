@@ -538,6 +538,95 @@ def train(training_data, valid_data, vocabulary, embedding_dim, hidden_dim,
     else:
         return model, 0
 
+def train_memory(training_data, valid_data, vocabulary, embedding_dim, hidden_dim,
+          device, batch_size, lr, model_path, embedding, all_relations,
+          model=None, epoch=100, memory_data=[], loss_margin=0.5,
+          past_fisher=None, rel_samples=[], relation_frequences=[],
+          rel_embeds=None, rel_ques_cand=None, rel_acc_diff=None,
+          all_seen_rels=None, update_rel_embed=None, reverse_model=None,
+          memory_que_embed=[],memory_rel_embed=[], to_update_reverse=False):
+    if model is None:
+        torch.manual_seed(100)
+        model = SimilarityModel(embedding_dim, hidden_dim, len(vocabulary),
+                                np.array(embedding), 1, device)
+    loss_function = nn.MarginRankingLoss(loss_margin)
+    model = model.to(device)
+    optimizer = optim.Adam(model.parameters(), lr=lr)
+    reverse_optimiser = torch.optim.Adam(reverse_model.parameters(),
+                                         lr = lr)
+    best_acc = 0
+    #acc_pre=evaluate_model(model, valid_data, batch_size, all_relations, device)
+    given_pro = None
+    memory_index = 0
+    memory_data_grads = []
+    for epoch_i in range(epoch):
+        #print('epoch', epoch_i)
+        #training_data = training_data[0:100]
+        #for i in range((len(training_data)-1)//batch_size+1):
+        for samples in memory_data:
+            #samples = training_data[i*batch_size:(i+1)*batch_size]
+            seed_rels = []
+            for item in samples:
+                if item[0] not in seed_rels:
+                    seed_rels.append(item[0])
+
+            #start_time = time.time()
+            '''
+            if len(memory_data) > 0:
+                all_seen_data = []
+                for this_memory in memory_data:
+                    all_seen_data+=this_memory
+                memory_batch = memory_data[memory_index]
+                #memory_batch = random.sample(all_seen_data,
+                #                             min(batch_size, len(all_seen_data)))
+                #print(memory_data)
+                scores, loss = feed_samples(model, memory_batch,
+                                            loss_function,
+                                            all_relations, device, reverse_model)
+                if to_update_reverse:
+                    reverse_optimiser.step()
+                else:
+                    optimizer.step()
+                memory_index = (memory_index+1)%len(memory_data)
+                '''
+            scores, loss = feed_samples(model, samples, loss_function,
+                                        all_relations, device, reverse_model)
+            #end_time = time.time()
+            #print('forward time:', end_time - start_time)
+            sample_grad = copy_grad_data(model)
+            if len(memory_data_grads) > 0:
+                #if not check_constrain(memory_data_grads, sample_grad):
+                if True:
+                    project2cone2(sample_grad, memory_data_grads)
+                    if past_fisher is None:
+                        grad_params = get_grad_params(model)
+                        grad_dims = [param.data.numel() for param in grad_params]
+                        overwrite_grad(grad_params, sample_grad, grad_dims)
+            if past_fisher is not None:
+                sample_grad = rescale_grad(sample_grad, past_fisher)
+                grad_params = get_grad_params(model)
+                grad_dims = [param.data.numel() for param in grad_params]
+                overwrite_grad(grad_params, sample_grad, grad_dims)
+            if to_update_reverse:
+                reverse_optimiser.step()
+            else:
+                optimizer.step()
+            del scores
+            del loss
+            '''
+        acc=evaluate_model(model, valid_data, batch_size, all_relations, device)
+        if acc > best_acc:
+            torch.save(model, model_path)
+    best_model = torch.load(model_path)
+    return best_model
+    '''
+    #acc_aft=evaluate_model(model, valid_data, batch_size, all_relations, device)
+    #return model, max(0, acc_aft-acc_pre)
+    if to_update_reverse:
+        return reverse_model, 0
+    else:
+        return model, 0
+
 if __name__ == '__main__':
     training_data, testing_data, valid_data, all_relations, vocabulary, \
         embedding=gen_data()

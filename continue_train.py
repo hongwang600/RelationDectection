@@ -17,7 +17,7 @@ from evaluate import evaluate_model, compute_diff_scores
 from data_partition import cluster_data
 from config import CONFIG as conf
 from train import train, sample_constrains, sample_given_pro, get_nearest_cand,\
-    select_data_kmeans, update_rel_cands, select_n_centers
+    select_data_kmeans, update_rel_cands, select_n_centers, train_memory
 from compute_rel_embed import compute_rel_embed
 from reverse_model import update_reverse_model
 from reverse_model import ReverseModel
@@ -62,7 +62,7 @@ def remove_unseen_relation(dataset, seen_relations):
             #cleaned_data.append(data)
             cleaned_data.append([data[0], neg_cands, data[2]])
         else:
-            cleaned_data.append([data[0], data[1][-2:], data[2]])
+            #cleaned_data.append([data[0], data[1][-2:], data[2]])
             pass
     return cleaned_data
 
@@ -635,7 +635,7 @@ def run_sequence(training_data, testing_data, valid_data, all_relations,
         to_train_data = []
         for this_memory in memory_data:
             to_train_data += this_memory
-        reverse_model, acc_diff = train(to_train_data, current_valid_data,
+        reverse_model, acc_diff = train_memory([], current_valid_data,
                               vocabulary, embedding_dim, hidden_dim,
                               device, batch_size, reverse_lr, model_path,
                               embedding, all_relations, current_model,
