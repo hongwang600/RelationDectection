@@ -420,7 +420,7 @@ def train(training_data, valid_data, vocabulary, embedding_dim, hidden_dim,
           past_fisher=None, rel_samples=[], relation_frequences=[],
           rel_embeds=None, rel_ques_cand=None, rel_acc_diff=None,
           all_seen_rels=None, update_rel_embed=None, reverse_model=None,
-          memory_que_embed=[],memory_rel_embed=[]):
+          memory_que_embed=[],memory_rel_embed=[], to_update_reverse=False):
     if model is None:
         torch.manual_seed(100)
         model = SimilarityModel(embedding_dim, hidden_dim, len(vocabulary),
@@ -428,6 +428,8 @@ def train(training_data, valid_data, vocabulary, embedding_dim, hidden_dim,
     loss_function = nn.MarginRankingLoss(loss_margin)
     model = model.to(device)
     optimizer = optim.Adam(model.parameters(), lr=lr)
+    reverse_optimiser = torch.optim.Adam(reverse_model.parameters(),
+                                         lr = lr)
     best_acc = 0
     #acc_pre=evaluate_model(model, valid_data, batch_size, all_relations, device)
     given_pro = None
@@ -479,7 +481,10 @@ def train(training_data, valid_data, vocabulary, embedding_dim, hidden_dim,
                 scores, loss = feed_samples(model, memory_batch,
                                             loss_function,
                                             all_relations, device, reverse_model)
-                optimizer.step()
+                if to_update_reverse:
+                    reverse_optimiser.step()
+                else:
+                    optimizer.step()
                 memory_index = (memory_index+1)%len(memory_data)
             scores, loss = feed_samples(model, samples, loss_function,
                                         all_relations, device, reverse_model)
@@ -499,7 +504,11 @@ def train(training_data, valid_data, vocabulary, embedding_dim, hidden_dim,
                 grad_params = get_grad_params(model)
                 grad_dims = [param.data.numel() for param in grad_params]
                 overwrite_grad(grad_params, sample_grad, grad_dims)
-            optimizer.step()
+            if to_update_reverse:
+                reverse_optimiser.step()
+            else:
+                optimizer.step()
+            #optimizer.step()
             if(epoch_i%5==0) and len(relation_frequences)>0 and False:
                 update_rel_embed(model, all_seen_rels, all_relations, rel_embeds)
                 samples = list(relation_frequences.keys())
@@ -524,7 +533,10 @@ def train(training_data, valid_data, vocabulary, embedding_dim, hidden_dim,
     '''
     #acc_aft=evaluate_model(model, valid_data, batch_size, all_relations, device)
     #return model, max(0, acc_aft-acc_pre)
-    return model, 0
+    if to_update_reverse:
+        return reverse_model, 0
+    else:
+        return model, 0
 
 if __name__ == '__main__':
     training_data, testing_data, valid_data, all_relations, vocabulary, \

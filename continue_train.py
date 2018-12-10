@@ -20,6 +20,7 @@ from train import train, sample_constrains, sample_given_pro, get_nearest_cand,\
     select_data_kmeans, update_rel_cands, select_n_centers
 from compute_rel_embed import compute_rel_embed
 from reverse_model import update_reverse_model
+from reverse_model import ReverseModel
 
 embedding_dim = conf['embedding_dim']
 hidden_dim = conf['hidden_dim']
@@ -27,6 +28,8 @@ batch_size = conf['batch_size']
 device = conf['device']
 num_clusters = conf['num_clusters']
 lr = conf['learning_rate']
+reverse_lr = conf['lr_revers_model']
+reverse_epoch = conf['epoch_revers_model']
 model_path = conf['model_path']
 epoch = conf['epoch']
 random_seed = conf['random_seed']
@@ -59,7 +62,7 @@ def remove_unseen_relation(dataset, seen_relations):
             #cleaned_data.append(data)
             cleaned_data.append([data[0], neg_cands, data[2]])
         else:
-            #cleaned_data.append([data[0], data[1][-2:], data[2]])
+            cleaned_data.append([data[0], data[1][-2:], data[2]])
             pass
     return cleaned_data
 
@@ -511,6 +514,8 @@ def run_sequence(training_data, testing_data, valid_data, all_relations,
     embed_diff_embeds = []
     embed_diff_result = []
     all_used_rels = list(rel_embeds.keys())
+    reverse_model = ReverseModel(hidden_dim*2, hidden_dim*2)
+    reverse_model = reverse_model.to(device)
     for i in range(num_clusters):
         for data in splited_training_data[i]:
             if data[0] not in seen_relations:
@@ -627,6 +632,20 @@ def run_sequence(training_data, testing_data, valid_data, all_relations,
             print(len(memory_data[i]), len(memory_que_embed[i]),
                   len(memory_rel_embed[i]))
                   '''
+        to_train_data = []
+        for this_memory in memory_data:
+            to_train_data += this_memory
+        reverse_model, acc_diff = train(to_train_data, current_valid_data,
+                              vocabulary, embedding_dim, hidden_dim,
+                              device, batch_size, reverse_lr, model_path,
+                              embedding, all_relations, current_model,
+                                        reverse_epoch,
+                              memory_data, loss_margin, past_fisher,
+                              rel_samples, relations_frequences_all,
+                              rel_embeds, rel_ques_cand, rel_acc_diff,
+                                        all_seen_rels, update_rel_embed,
+                                        reverse_model, memory_que_embed,
+                                        memory_rel_embed, True)
         if len(memory_data) > 1:
             cur_que_embed = [get_que_embed(current_model, this_memory,
                                            all_relations, reverse_model, True)
@@ -636,6 +655,7 @@ def run_sequence(training_data, testing_data, valid_data, all_relations,
                                            all_relations, reverse_model, True)
                              for this_memory in
                              memory_data]
+            '''
             reverse_model = update_reverse_model(reverse_model, cur_que_embed,
                                                  cur_rel_embed,
                                                  memory_que_embed,
@@ -648,6 +668,7 @@ def run_sequence(training_data, testing_data, valid_data, all_relations,
                                            all_relations, reverse_model, False)
                              for this_memory in
                              memory_data]
+                             '''
         '''
         embed_diff_result.append(get_embed_diff_result(current_model,
                                                        reverse_model,
