@@ -281,6 +281,8 @@ def feed_samples(model, samples, loss_function, all_relations, device,
     #print(pad_questions)
 
     model.zero_grad()
+    if reverse_model is not None:
+        reverse_model.zero_grad()
     model.init_hidden(device, sum(relation_set_lengths))
     all_scores, cur_que_embed, cur_rel_embed = model(pad_questions,
                                                      pad_relations, device,
@@ -305,14 +307,16 @@ def feed_samples(model, samples, loss_function, all_relations, device,
                          torch.ones(sum(relation_set_lengths)-
                                     len(relation_set_lengths)))
     #if reverse_model is not None and len(memory_que_embed) > 0 and False:
-    if False:
+    #if False:
+    alpha = 0.0
+    if len(memory_que_embed)>0:
         reverse_model = reverse_model.to(device)
         que_y = torch.from_numpy(memory_que_embed)
         rel_y = torch.from_numpy(memory_rel_embed)
-        que_out = reverse_model.forward(cur_que_embed[pos_index]).to('cpu')
-        rel_out = reverse_model.forward(cur_rel_embed[pos_index]).to('cpu')
-        loss+= reverse_model_criterion(que_out, que_y) +\
-            reverse_model_criterion(rel_out, rel_y)
+        que_out = cur_que_embed[pos_index].to('cpu')
+        rel_out = cur_rel_embed[pos_index].to('cpu')
+        loss = loss*alpha + (1-alpha)*(reverse_model_criterion(que_out, que_y) +\
+            reverse_model_criterion(rel_out, rel_y))
 
     loss.backward()
     return all_scores, loss
@@ -563,7 +567,7 @@ def train_memory(training_data, valid_data, vocabulary, embedding_dim, hidden_di
         #print('epoch', epoch_i)
         #training_data = training_data[0:100]
         #for i in range((len(training_data)-1)//batch_size+1):
-        for samples in memory_data:
+        for i, samples in enumerate(memory_data):
             #samples = training_data[i*batch_size:(i+1)*batch_size]
             seed_rels = []
             for item in samples:
@@ -591,22 +595,10 @@ def train_memory(training_data, valid_data, vocabulary, embedding_dim, hidden_di
                 '''
             scores, loss = feed_samples(model, samples, loss_function,
                                         all_relations, device, reverse_model)
+                                        #memory_que_embed[i], memory_rel_embed[i])
             #end_time = time.time()
             #print('forward time:', end_time - start_time)
             sample_grad = copy_grad_data(model)
-            if len(memory_data_grads) > 0:
-                #if not check_constrain(memory_data_grads, sample_grad):
-                if True:
-                    project2cone2(sample_grad, memory_data_grads)
-                    if past_fisher is None:
-                        grad_params = get_grad_params(model)
-                        grad_dims = [param.data.numel() for param in grad_params]
-                        overwrite_grad(grad_params, sample_grad, grad_dims)
-            if past_fisher is not None:
-                sample_grad = rescale_grad(sample_grad, past_fisher)
-                grad_params = get_grad_params(model)
-                grad_dims = [param.data.numel() for param in grad_params]
-                overwrite_grad(grad_params, sample_grad, grad_dims)
             if to_update_reverse:
                 reverse_optimiser.step()
             else:

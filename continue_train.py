@@ -515,6 +515,9 @@ def run_sequence(training_data, testing_data, valid_data, all_relations,
     embed_diff_result = []
     all_used_rels = list(rel_embeds.keys())
     reverse_model = ReverseModel(hidden_dim*2, hidden_dim*2)
+    #reverse_model.linear.weight.data.fill_(1.0)
+    #reverse_model.linear.bias.data.fill_(0.0)
+
     reverse_model = reverse_model.to(device)
     for i in range(num_clusters):
         for data in splited_training_data[i]:
@@ -660,6 +663,7 @@ def run_sequence(training_data, testing_data, valid_data, all_relations,
                                                  cur_rel_embed,
                                                  memory_que_embed,
                                                  memory_rel_embed)
+                             '''
             memory_que_embed = [get_que_embed(current_model, this_memory,
                                            all_relations, reverse_model, False)
                              for this_memory in
@@ -668,7 +672,6 @@ def run_sequence(training_data, testing_data, valid_data, all_relations,
                                            all_relations, reverse_model, False)
                              for this_memory in
                              memory_data]
-                             '''
         '''
         embed_diff_result.append(get_embed_diff_result(current_model,
                                                        reverse_model,
