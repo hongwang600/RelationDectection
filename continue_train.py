@@ -59,7 +59,7 @@ def remove_unseen_relation(dataset, seen_relations):
             #cleaned_data.append(data)
             cleaned_data.append([data[0], neg_cands, data[2]])
         else:
-            #cleaned_data.append([data[0], data[1][-2:], data[2]])
+            cleaned_data.append([data[0], data[1][-2:], data[2]])
             pass
     return cleaned_data
 
@@ -598,10 +598,10 @@ def run_sequence(training_data, testing_data, valid_data, all_relations,
                                                    past_fisher,
                                                    num_past_data)
                                                    '''
-        #memory_data.append(current_train_data[-task_memory_size:])
-        memory_data.append(select_data(current_model, current_train_data,
-                                       task_memory_size, all_relations,
-                                       reverse_model))
+        memory_data.append(current_train_data[-task_memory_size:])
+        #memory_data.append(select_data(current_model, current_train_data,
+        #                               task_memory_size, all_relations,
+        #                               reverse_model))
         #memory_data.append(select_data_icarl(current_model, current_train_data,
         #                               task_memory_size, all_relations,
         #                               reverse_model))
@@ -636,6 +636,7 @@ def run_sequence(training_data, testing_data, valid_data, all_relations,
                                            all_relations, reverse_model, True)
                              for this_memory in
                              memory_data]
+            '''
             reverse_model = update_reverse_model(reverse_model, cur_que_embed,
                                                  cur_rel_embed,
                                                  memory_que_embed,
@@ -648,6 +649,7 @@ def run_sequence(training_data, testing_data, valid_data, all_relations,
                                            all_relations, reverse_model, False)
                              for this_memory in
                              memory_data]
+                             '''
         '''
         embed_diff_result.append(get_embed_diff_result(current_model,
                                                        reverse_model,

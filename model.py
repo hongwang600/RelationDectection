@@ -69,6 +69,7 @@ class SimilarityModel(nn.Module):
                                       vocab_embedding, batch_size, device)
         self.relation_biLstm = BiLSTM(embedding_dim, hidden_dim, vocab_size,
                                       vocab_embedding, batch_size, device)
+        self.linear = nn.Linear(hidden_dim*2, hidden_dim*2)
 
     def init_hidden(self, device, batch_size=1):
         self.sentence_biLstm.init_hidden(device, batch_size)
@@ -96,6 +97,7 @@ class SimilarityModel(nn.Module):
                                                     question_lengths)
         question_embedding = self.sentence_biLstm(question_packed)
         question_embedding = question_embedding[reverse_question_indexs]
+        question_embedding = self.linear(question_embedding)
         if reverse_model is not None and not before_reverse:
             return reverse_model(question_embedding).detach()
         else:
@@ -110,6 +112,7 @@ class SimilarityModel(nn.Module):
                                                     relation_lengths)
         relation_embedding = self.relation_biLstm(relation_packed)
         relation_embedding = relation_embedding[reverse_relation_indexs]
+        relation_embedding = self.linear(relation_embedding)
         if reverse_model is not None and not before_reverse:
             return reverse_model(relation_embedding).detach()
         else:
@@ -152,6 +155,8 @@ class SimilarityModel(nn.Module):
         relation_embedding = self.relation_biLstm(relation_packed)
         question_embedding = question_embedding[reverse_question_indexs]
         relation_embedding = relation_embedding[reverse_relation_indexs]
+        question_embedding = self.linear(question_embedding)
+        relation_embedding = self.linear(relation_embedding)
         #print('sentence_embedding size', sentence_embedding.size())
         #print('relation_embedding size', relation_embedding.size())
         #print('sentence_embedding', sentence_embedding)
