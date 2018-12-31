@@ -16,10 +16,19 @@ def cluster_data(num_clusters=20):
                     random_state=0).fit(relation_embeddings)
     #print(kmeans.inertia_)
     labels = kmeans.labels_
+    rel_embed = {}
     cluster_index = {}
     for i in range(len(relation_index)):
         cluster_index[relation_index[i]] = labels[i]
-    return cluster_index
+        rel_embed[relation_index[i]] = relation_embeddings[i]
+    rel_index = np.asarray(list(relation_index))
+    '''
+    splited_index = np.split(rel_index, num_clusters)
+    for i, this_cluster in enumerate(splited_index):
+        for rel in this_cluster:
+            cluster_index[rel] = i
+            '''
+    return cluster_index, rel_embed
 
 if __name__ == '__main__':
     cluster_index = cluster_data(num_clusters=20)
